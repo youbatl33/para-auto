@@ -3,10 +3,9 @@ import React, { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import "./App.css";
 
-// Configuration Supabase
 const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL || "YOUR_SUPABASE_URL",
-  import.meta.env.VITE_SUPABASE_ANON_KEY || "YOUR_SUPABASE_ANON_KEY"
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
 export default function App() {
@@ -17,8 +16,7 @@ export default function App() {
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const [destination, setDestination] = useState("");
   const [purpose, setPurpose] = useState("");
@@ -26,25 +24,31 @@ export default function App() {
   const [vehicleId, setVehicleId] = useState("");
   const [departureKm, setDepartureKm] = useState("");
   const [notes, setNotes] = useState("");
-
   const [returnKm, setReturnKm] = useState({});
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   const isAdmin = profile?.role === "admin";
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      if (data.session) loadProfile(data.session.user);
-      else setLoading(false);
+      if (data.session) {
+        setSession(data.session);
+        loadProfile(data.session.user);
+      } else {
+        setLoading(false);
+      }
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, newSession) => {
-        setSession(newSession);
-        if (newSession) {
-          loadProfile(newSession.user);
+      (_event, currentSession) => {
+        setSession(currentSession);
+        if (currentSession) {
+          loadProfile(currentSession.user);
         } else {
           setProfile(null);
+          setTrips([]);
           setLoading(false);
         }
       }
@@ -54,8 +58,6 @@ export default function App() {
   }, []);
 
   async function loadProfile(user) {
-    setLoading(true);
-
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
@@ -63,20 +65,20 @@ export default function App() {
       .single();
 
     if (error) {
-      setMessage("تعذر تحميل معلومات الحساب: " + error.message);
+      setMessage("خطأ في الحساب: " + error.message);
       setLoading(false);
       return;
     }
 
     setProfile(data);
-    await loadData(data);
+    await loadData();
     setLoading(false);
   }
 
-  async function loadData(currentProfile) {
+  async function loadData() {
     const [d, v, t] = await Promise.all([
-      supabase.from("drivers").select("*").eq("active", true),
-      supabase.from("vehicles").select("*").eq("active", true),
+      supabase.from("drivers").select("*"),
+      supabase.from("vehicles").select("*"),
       supabase.from("trips").select("*").order("created_at", {
         ascending: false
       })
@@ -87,6 +89,7 @@ export default function App() {
         "خطأ في تحميل البيانات: " +
         (d.error?.message || v.error?.message || t.error?.message)
       );
+      return;
     }
 
     setDrivers(d.data || []);
@@ -114,85 +117,132 @@ export default function App() {
 
   async function createTrip(e) {
     e.preventDefault();
+    if (busy) return;
+
+    setBusy(true);
     setMessage("");
 
-    if (!destination || !vehicleId || !driverId || !departureKm) {
-      setMessage("يرجى ملء جميع المعلومات الضرورية");
-      return;
+    try {
+      if (!session || !profile) {
+        throw new Error("يجب تسجيل الدخول أولا");
+      }
+
+      const selectedDriver = drivers.find(d => d.id === driverId);
+      const selectedVehicle = vehicles.find(v => v.id === vehicleId);
+
+      if (!selectedDriver || !selectedVehicle) {
+        throw new Error("اختيار السائق والسيارة ضروري");
+      }
+
+      const km = Number(departureKm);
+
+      if (!Number.isInteger(km) || km < 0) {
+        throw new Error("عداد الانطلاق غير صحيح");
+      }
+
+      const vehicleBusy = trips.some(
+        t => t.vehicle_id === vehicleId && t.status === "out"
+      );
+
+      if (vehicleBusy) {
+        throw new Error("السيارة لديها رحلة لم يتم تسجيل رجوعها");
+      }
+
+      const driverBusy = trips.some(
+        t => t.driver_id === driverId && t.status === "out"
+      );
+
+      if (driverBusy) {
+        throw new Error("السائق لديه رحلة لم يتم تسجيل رجوعها");
+      }
+
+      const now = new Date().toISOString();
+
+      const newTrip = {
+        driver_id: driverId,
+        vehicle_id: vehicleId,
+        driver_name: selectedDriver.full_name || "",
+        vehicle_name:
+          selectedVehicle.plate ||
+          selectedVehicle.registration ||
+          selectedVehicle.label ||
+          "",
+        destination: destination.trim(),
+        purpose: purpose || null,
+        departure_at: now,
+        departure_km: km,
+        notes: notes || null,
+        status: "out",
+        client_id: session.user.id
+      };
+
+      const { data, error } = await supabase
+        .from("trips")
+        .insert([newTrip])
+        .select();
+
+      if (error) throw error;
+
+      setTrips(old => [...(data || []), ...old]);
+      setDestination("");
+      setPurpose("");
+      setDriverId("");
+      setVehicleId("");
+      setDepartureKm("");
+      setNotes("");
+
+      setMessage(
+        "تم تسجيل الانطلاق بنجاح بتاريخ " +
+        new Date(now).toLocaleString("fr-FR")
+      );
+
+      await loadData();
+    } catch (error) {
+      setMessage("لم يتم تسجيل الرحلة: " + error.message);
+    } finally {
+      setBusy(false);
     }
-
-    const vehicleBusy = trips.some(
-      t => t.vehicle_id === vehicleId && !t.return_at
-    );
-
-    if (vehicleBusy) {
-      setMessage("هذه السيارة مستعملة حاليا في رحلة أخرى");
-      return;
-    }
-
-    const driverBusy = trips.some(
-      t => t.driver_id === driverId && !t.return_at
-    );
-
-    if (driverBusy) {
-      setMessage("هذا السائق لديه رحلة لم يتم تسجيل الرجوع منها");
-      return;
-    }
-
-    const selectedDriver = drivers.find(d => d.id === driverId);
-
-    const { error } = await supabase.from("trips").insert({
-      driver_id: driverId,
-      vehicle_id: vehicleId,
-      destination,
-      purpose: purpose || null,
-      departure_at: new Date().toISOString(),
-      departure_km: Number(departureKm),
-      notes: notes || null,
-      status: "open",
-      client_id: session.user.id,
-      driver_name: selectedDriver?.full_name || null
-    });
-
-    if (error) {
-      setMessage("تعذر تسجيل الرحلة: " + error.message);
-      return;
-    }
-
-    setDestination("");
-    setPurpose("");
-    setVehicleId("");
-    setDepartureKm("");
-    setNotes("");
-
-    setMessage("تم تسجيل الرحلة بنجاح");
-    await loadData(profile);
   }
 
   async function finishTrip(trip) {
+    if (busy) return;
+
     const km = Number(returnKm[trip.id]);
 
-    if (!km || km < trip.departure_km) {
-      setMessage("يجب إدخال كيلومترات الرجوع بشكل صحيح");
+    if (!Number.isInteger(km) || km < trip.departure_km) {
+      setMessage("عداد الرجوع يجب أن يكون أكبر أو مساويا لعداد الانطلاق");
       return;
     }
 
-    const { error } = await supabase
-      .from("trips")
-      .update({
-        return_at: new Date().toISOString(),
-        return_km: km,
-        status: "completed"
-      })
-      .eq("id", trip.id);
+    setBusy(true);
 
-    if (error) {
-      setMessage("تعذر تسجيل الرجوع: " + error.message);
-      return;
+    try {
+      const now = new Date().toISOString();
+
+      const { data, error } = await supabase
+        .from("trips")
+        .update({
+          return_at: now,
+          return_km: km,
+          status: "returned"
+        })
+        .eq("id", trip.id)
+        .eq("status", "out")
+        .select();
+
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error("لم يتم تحديث الرحلة، تحقق من صلاحيات الحساب");
+      }
+
+      setReturnKm(old => ({ ...old, [trip.id]: "" }));
+      setMessage("تم تسجيل الرجوع بنجاح");
+      await loadData();
+    } catch (error) {
+      setMessage("خطأ في تسجيل الرجوع: " + error.message);
+    } finally {
+      setBusy(false);
     }
-
-    setMessage("تم تسجيل رجوع السيارة بنجاح");
-    await loadData(profile);
   }
 
   if (loading) {
@@ -229,30 +279,26 @@ export default function App() {
     );
   }
 
-  const openTrips = trips.filter(t => !t.return_at);
-  const completedTrips = trips.filter(t => t.return_at);
+  const openTrips = trips.filter(t => t.status === "out");
+  const completedTrips = trips.filter(t => t.status === "returned");
 
   return (
     <main className="app" dir="rtl">
       <header className="header">
         <div>
           <h1>PARA AUTO</h1>
-          <p>تدبير أسطول السيارات</p>
+          <p>نظام تدبير أسطول السيارات</p>
         </div>
 
         <div className="user-info">
           <span>{profile?.full_name}</span>
-          <span className="role">
-            {isAdmin ? "المراقب الرئيسي" : profile?.role}
-          </span>
-          <button className="logout" onClick={logout}>
-            خروج
-          </button>
+          <span>{isAdmin ? "المراقب الرئيسي" : profile?.role}</span>
+          <button className="logout" onClick={logout}>خروج</button>
         </div>
       </header>
 
       {message && (
-        <div className="message" role="status">
+        <div className="message">
           {message}
           <button onClick={() => setMessage("")}>×</button>
         </div>
@@ -280,13 +326,9 @@ export default function App() {
       <section className="panel">
         <h2>تسجيل رحلة جديدة</h2>
 
-        <form onSubmit={createTrip} className="trip-form">
+        <form className="trip-form" onSubmit={createTrip}>
           <label>السائق</label>
-          <select
-            value={driverId}
-            onChange={e => setDriverId(e.target.value)}
-            required
-          >
+          <select value={driverId} onChange={e => setDriverId(e.target.value)} required>
             <option value="">اختر السائق</option>
             {drivers.map(d => (
               <option key={d.id} value={d.id}>
@@ -296,122 +338,98 @@ export default function App() {
           </select>
 
           <label>السيارة</label>
-          <select
-            value={vehicleId}
-            onChange={e => setVehicleId(e.target.value)}
-            required
-          >
+          <select value={vehicleId} onChange={e => setVehicleId(e.target.value)} required>
             <option value="">اختر السيارة</option>
             {vehicles.map(v => (
               <option key={v.id} value={v.id}>
-                {v.plate} - {v.label}
+                {v.plate || v.registration || v.label || v.id}
               </option>
             ))}
           </select>
 
           <label>الوجهة</label>
-          <input
-            value={destination}
-            onChange={e => setDestination(e.target.value)}
-            placeholder="مكان الوجهة"
-            required
-          />
+          <input value={destination} onChange={e => setDestination(e.target.value)} required />
 
           <label>الغرض من الرحلة</label>
-          <input
-            value={purpose}
-            onChange={e => setPurpose(e.target.value)}
-            placeholder="سبب التنقل"
-          />
+          <input value={purpose} onChange={e => setPurpose(e.target.value)} />
 
-          <label>عداد الكيلومترات عند الانطلاق</label>
+          <label>عداد الانطلاق (KM)</label>
           <input
             type="number"
             min="0"
+            step="1"
             value={departureKm}
             onChange={e => setDepartureKm(e.target.value)}
             required
           />
 
           <label>ملاحظات</label>
-          <textarea
-            value={notes}
-            onChange={e => setNotes(e.target.value)}
-            placeholder="ملاحظات إضافية"
-          />
+          <textarea value={notes} onChange={e => setNotes(e.target.value)} />
 
-          <button type="submit">تسجيل الانطلاق</button>
+          <button type="submit" disabled={busy}>
+            {busy ? "جاري التسجيل..." : "تسجيل الانطلاق"}
+          </button>
         </form>
       </section>
 
       <section className="panel">
         <h2>الرحلات الجارية</h2>
 
-        {openTrips.length === 0 ? (
-          <p>لا توجد رحلات جارية حاليا</p>
-        ) : (
-          openTrips.map(trip => {
-            const vehicle = vehicles.find(v => v.id === trip.vehicle_id);
-            const driver = drivers.find(d => d.id === trip.driver_id);
+        {openTrips.length === 0 && <p>لا توجد رحلات جارية</p>}
 
-            return (
-              <article className="trip-card" key={trip.id}>
-                <h3>{trip.destination}</h3>
-                <p>السائق: {driver?.full_name || trip.driver_name || "—"}</p>
-                <p>السيارة: {vehicle?.plate || trip.vehicle_id}</p>
-                <p>عداد الانطلاق: {trip.departure_km} km</p>
-                <p>
-                  وقت الانطلاق:{" "}
-                  {trip.departure_at
-                    ? new Date(trip.departure_at).toLocaleString("fr-FR")
-                    : "—"}
-                </p>
+        {openTrips.map(trip => (
+          <article className="trip-card" key={trip.id}>
+            <h3>{trip.destination}</h3>
+            <p>السائق: {trip.driver_name || "—"}</p>
+            <p>السيارة: {trip.vehicle_name || "—"}</p>
+            <p>تاريخ الانطلاق: {new Date(trip.departure_at).toLocaleString("fr-FR")}</p>
+            <p>عداد الانطلاق: {trip.departure_km} KM</p>
 
-                <label>عداد الكيلومترات عند الرجوع</label>
-                <input
-                  type="number"
-                  min={trip.departure_km}
-                  value={returnKm[trip.id] || ""}
-                  onChange={e =>
-                    setReturnKm({
-                      ...returnKm,
-                      [trip.id]: e.target.value
-                    })
-                  }
-                />
+            <label>عداد الرجوع</label>
+            <input
+              type="number"
+              min={trip.departure_km}
+              step="1"
+              value={returnKm[trip.id] || ""}
+              onChange={e =>
+                setReturnKm(old => ({ ...old, [trip.id]: e.target.value }))
+              }
+            />
 
-                <button onClick={() => finishTrip(trip)}>
-                  تسجيل الرجوع
-                </button>
-              </article>
-            );
-          })
-        )}
+            <button disabled={busy} onClick={() => finishTrip(trip)}>
+              تسجيل الرجوع
+            </button>
+          </article>
+        ))}
       </section>
 
       <section className="panel">
-        <h2>سجل الرحلات</h2>
+        <h2>سجل جميع الرحلات</h2>
 
-        {trips.map(trip => {
-          const vehicle = vehicles.find(v => v.id === trip.vehicle_id);
-          const driver = drivers.find(d => d.id === trip.driver_id);
+        {trips.length === 0 && <p>لا توجد رحلات مسجلة</p>}
 
-          return (
-            <article className="history-card" key={trip.id}>
-              <strong>{trip.destination}</strong>
-              <p>السائق: {driver?.full_name || trip.driver_name || "—"}</p>
-              <p>السيارة: {vehicle?.plate || "—"}</p>
-              <p>الانطلاق: {trip.departure_km} km</p>
-              <p>
-                الرجوع: {trip.return_km ?? "لم يسجل بعد"}
-                {trip.return_km != null ? " km" : ""}
-              </p>
-              <span className={trip.return_at ? "done" : "pending"}>
-                {trip.return_at ? "مكتملة" : "جارية"}
-              </span>
-            </article>
-          );
-        })}
+        {trips.map(trip => (
+          <article className="history-card" key={trip.id}>
+            <h3>{trip.destination}</h3>
+            <p>السائق: {trip.driver_name || "—"}</p>
+            <p>السيارة: {trip.vehicle_name || "—"}</p>
+            <p>
+              الانطلاق: {trip.departure_at
+                ? new Date(trip.departure_at).toLocaleString("fr-FR")
+                : "—"}
+            </p>
+            <p>عداد الانطلاق: {trip.departure_km} KM</p>
+            <p>
+              الرجوع: {trip.return_at
+                ? new Date(trip.return_at).toLocaleString("fr-FR")
+                : "لم يسجل بعد"}
+            </p>
+            <p>عداد الرجوع: {trip.return_km ?? "—"}</p>
+            <span className={trip.status === "returned" ? "done" : "pending"}>
+              {trip.status === "returned" ? "مكتملة" : "في مهمة"}
+            </span>
+          </article>
+        ))}
       </section>
 
       <footer>PARA AUTO © 2026</footer>
