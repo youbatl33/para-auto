@@ -1,10 +1,18 @@
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App.jsx';
-import './style.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
+  <div style={{
+    background: '#102b46',
+    color: 'white',
+    minHeight: '100vh',
+    display: 'grid',
+    placeItems: 'center',
+    fontFamily: 'Arial',
+    fontSize: '30px',
+    direction: 'rtl'
+  }}>
+    PARA AUTO يعمل بنجاح
+  </div>
 );
