@@ -113,7 +113,7 @@ export default function App() {
   const [tab, setTab] = useState("trips");
 
   const [form, setForm] = useState({
-    driver_id: "",
+    driver_name: "",
     vehicle_id: "",
     destination: "",
     purpose: "",
@@ -121,7 +121,6 @@ export default function App() {
     notes: ""
   });
 
-  // معلومات السائق الجديد
   const [newDriverFirst, setNewDriverFirst] = useState("");
   const [newDriverLast, setNewDriverLast] = useState("");
   const [newDriverMatricule, setNewDriverMatricule] = useState("");
@@ -284,7 +283,6 @@ export default function App() {
     setForm(prev => ({ ...prev, [key]: value }));
   }
 
-  // إضافة سائق جديد بالاسم والنسب والماتريكيل
   async function addDriver(e) {
     e.preventDefault();
 
@@ -300,14 +298,12 @@ export default function App() {
       return setMessage("يرجى إدخال الاسم الشخصي والنسب والماتريكيل.");
     }
 
-    const fullName = `${first} ${last}`;
-
     setSaving(true);
     setMessage("");
 
     try {
       const { error } = await supabase.from("drivers").insert({
-        full_name: fullName,
+        full_name: `${first} ${last}`,
         matricule,
         active: true
       });
@@ -369,7 +365,6 @@ export default function App() {
     }
   }
 
-  // تعديل الاسم والماتريكيل
   async function editDriver(driver) {
     if (!isAdmin) return;
 
@@ -495,12 +490,12 @@ export default function App() {
     }
   }
 
-  // تسجيل رحلة جديدة
+  // تسجيل رحلة باسم سائق مكتوب يدوياً
   async function addTrip(e) {
     e.preventDefault();
 
     if (
-      !form.driver_id ||
+      !form.driver_name.trim() ||
       !form.vehicle_id ||
       !form.destination.trim() ||
       form.departure_km === ""
@@ -514,11 +509,10 @@ export default function App() {
       return setMessage("عداد الانطلاق غير صحيح.");
     }
 
-    const driver = activeDrivers.find(d => d.id === form.driver_id);
     const vehicle = activeVehicles.find(v => v.id === form.vehicle_id);
 
-    if (!driver || !vehicle) {
-      return setMessage("السائق أو السيارة غير متاح.");
+    if (!vehicle) {
+      return setMessage("السيارة غير متاحة.");
     }
 
     if (openTrips.some(t => t.vehicle_id === form.vehicle_id)) {
@@ -532,7 +526,8 @@ export default function App() {
       const { error } = await supabase
         .from("trips")
         .insert({
-          driver_id: form.driver_id,
+          driver_id: null,
+          driver_name: form.driver_name.trim(),
           vehicle_id: form.vehicle_id,
           destination: form.destination.trim(),
           purpose: form.purpose.trim() || null,
@@ -543,14 +538,13 @@ export default function App() {
           return_km: null,
           status: "out",
           client_id: user.id,
-          driver_name: driver.full_name,
           vehicle_name: `${vehicle.plate} ${vehicle.label}`
         });
 
       if (error) throw error;
 
       setForm({
-        driver_id: "",
+        driver_name: "",
         vehicle_id: "",
         destination: "",
         purpose: "",
@@ -568,7 +562,6 @@ export default function App() {
     }
   }
 
-  // تسجيل عودة السيارة
   async function finishTrip(trip) {
     const value = returnKm[trip.id];
 
@@ -718,7 +711,7 @@ export default function App() {
         }}>
           {[
             ["السيارات", vehicles.length],
-            ["السائقون", drivers.length],
+            ["السائقون المسجلون", drivers.length],
             ["الرحلات المفتوحة", openTrips.length],
             ["الرحلات المكتملة", completedTrips.length]
           ].map(([label, value]) => (
@@ -749,20 +742,15 @@ export default function App() {
             <h3>تسجيل رحلة جديدة</h3>
 
             <form onSubmit={addTrip}>
-              <label>السائق</label>
-              <select
+              <label>اسم السائق</label>
+              <input
                 style={css.input}
-                value={form.driver_id}
-                onChange={e => setFormValue("driver_id", e.target.value)}
+                type="text"
+                placeholder="اكتب اسم السائق..."
+                value={form.driver_name}
+                onChange={e => setFormValue("driver_name", e.target.value)}
                 required
-              >
-                <option value="">اختر السائق</option>
-                {activeDrivers.map(d => (
-                  <option key={d.id} value={d.id}>
-                    {d.full_name} — Matricule: {d.matricule || "غير مسجل"}
-                  </option>
-                ))}
-              </select>
+              />
 
               <label>السيارة</label>
               <select
@@ -835,7 +823,7 @@ export default function App() {
                   <b>{t.destination}</b>
                   <p>السيارة: {t.vehicle_name || vehicleName(t.vehicle_id)}</p>
                   <p>السائق: {t.driver_name || driverName(t.driver_id)}</p>
-                  <p>Matricule: {driverMatricule(t.driver_id)}</p>
+                  {t.driver_id && <p>Matricule: {driverMatricule(t.driver_id)}</p>}
                   <p>عداد الانطلاق: {t.departure_km} KM</p>
 
                   <input
@@ -875,7 +863,7 @@ export default function App() {
                   <b>{t.destination}</b>
                   <p>السيارة: {t.vehicle_name || vehicleName(t.vehicle_id)}</p>
                   <p>السائق: {t.driver_name || driverName(t.driver_id)}</p>
-                  <p>Matricule: {driverMatricule(t.driver_id)}</p>
+                  {t.driver_id && <p>Matricule: {driverMatricule(t.driver_id)}</p>}
                   <p>عداد الانطلاق: {t.departure_km} KM</p>
                   <p>عداد العودة: {t.return_km} KM</p>
                   <p>
@@ -957,7 +945,7 @@ export default function App() {
                 }}>
                   <h3>{t.destination}</h3>
                   <p>السائق: {t.driver_name || driverName(t.driver_id)}</p>
-                  <p>Matricule: {driverMatricule(t.driver_id)}</p>
+                  {t.driver_id && <p>Matricule: {driverMatricule(t.driver_id)}</p>}
                   <p>السيارة: {t.vehicle_name || vehicleName(t.vehicle_id)}</p>
                   <p>الغرض: {t.purpose || "غير محدد"}</p>
                   <p>عداد الانطلاق: {t.departure_km} KM</p>
@@ -991,10 +979,10 @@ export default function App() {
           </section>
         )}
 
-        {/* إدارة السائقين */}
+        {/* إدارة السائقين المسجلين */}
         {tab === "drivers" && (
           <section style={css.card}>
-            <h3>قائمة السائقين</h3>
+            <h3>قائمة السائقين المسجلين</h3>
 
             {isAdmin && (
               <form onSubmit={addDriver}>
