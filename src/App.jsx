@@ -112,23 +112,23 @@ export default function App() {
   const [message, setMessage] = useState("");
   const [tab, setTab] = useState("trips");
 
-  // بيانات الرحلة والسائق اليدوي
+  // جميع معلومات الرحلة تكتب يدوياً
   const [form, setForm] = useState({
     driver_name: "",
     driver_matricule: "",
-    vehicle_id: "",
+    vehicle_name: "",
     destination: "",
     purpose: "",
     departure_km: "",
     notes: ""
   });
 
-  // إضافة سائق إلى القائمة
+  // إضافة سائق إلى القائمة القديمة
   const [newDriverFirst, setNewDriverFirst] = useState("");
   const [newDriverLast, setNewDriverLast] = useState("");
   const [newDriverMatricule, setNewDriverMatricule] = useState("");
 
-  // إضافة سيارة
+  // إضافة سيارة إلى القائمة القديمة
   const [newPlate, setNewPlate] = useState("");
   const [newLabel, setNewLabel] = useState("");
 
@@ -288,7 +288,7 @@ export default function App() {
     setForm(prev => ({ ...prev, [key]: value }));
   }
 
-  // إضافة سائق مسجل
+  // إضافة سائق إلى القائمة القديمة
   async function addDriver(e) {
     e.preventDefault();
 
@@ -301,7 +301,7 @@ export default function App() {
     const matricule = newDriverMatricule.trim();
 
     if (!first || !last || !matricule) {
-      return setMessage("يرجى إدخال الاسم الشخصي والنسب والماتريكيل.");
+      return setMessage("يرجى إدخال الاسم والنسب والماتريكيل.");
     }
 
     setSaving(true);
@@ -314,12 +314,7 @@ export default function App() {
         active: true
       });
 
-      if (error) {
-        if (error.code === "23505") {
-          throw new Error("هذا الماتريكيل مسجل من قبل.");
-        }
-        throw error;
-      }
+      if (error) throw error;
 
       setNewDriverFirst("");
       setNewDriverLast("");
@@ -335,7 +330,7 @@ export default function App() {
     }
   }
 
-  // إضافة سيارة
+  // إضافة سيارة إلى القائمة القديمة
   async function addVehicle(e) {
     e.preventDefault();
 
@@ -364,6 +359,7 @@ export default function App() {
 
       setNewPlate("");
       setNewLabel("");
+
       setMessage("تمت إضافة السيارة بنجاح.");
       await loadData();
 
@@ -374,7 +370,7 @@ export default function App() {
     }
   }
 
-  // تعديل السائق المسجل
+  // تعديل السائق
   async function editDriver(driver) {
     if (!isAdmin) return;
 
@@ -386,16 +382,13 @@ export default function App() {
     if (name === null || !name.trim()) return;
 
     const matricule = window.prompt(
-      "Matricule - الرقم التسلسلي:",
+      "Matricule:",
       driver.matricule || ""
     );
 
-    if (matricule === null || !matricule.trim()) {
-      return setMessage("الماتريكيل إجباري.");
-    }
+    if (matricule === null || !matricule.trim()) return;
 
     setSaving(true);
-    setMessage("");
 
     const { error } = await supabase
       .from("drivers")
@@ -408,11 +401,7 @@ export default function App() {
     setSaving(false);
 
     if (error) {
-      setMessage(
-        error.code === "23505"
-          ? "هذا الماتريكيل مسجل عند سائق آخر."
-          : "تعذر التعديل: " + error.message
-      );
+      setMessage("تعذر التعديل: " + error.message);
     } else {
       setMessage("تم تعديل معلومات السائق.");
       await loadData();
@@ -449,7 +438,7 @@ export default function App() {
     }
   }
 
-  // تعطيل سائق مسجل
+  // تعطيل سائق
   async function deactivateDriver(driver) {
     if (!isAdmin) return;
 
@@ -503,36 +492,24 @@ export default function App() {
     }
   }
 
-  // تسجيل رحلة باسم السائق والماتريكيل يدوياً
+  // تسجيل رحلة: السائق والسيارة بالإدخال اليدوي
   async function addTrip(e) {
     e.preventDefault();
 
     if (
       !form.driver_name.trim() ||
       !form.driver_matricule.trim() ||
-      !form.vehicle_id ||
+      !form.vehicle_name.trim() ||
       !form.destination.trim() ||
       form.departure_km === ""
     ) {
-      return setMessage("يرجى إدخال اسم السائق والماتريكيل والسيارة والوجهة والعداد.");
+      return setMessage("يرجى ملء جميع الخانات الإجبارية.");
     }
 
     const km = Number(form.departure_km);
 
     if (!Number.isInteger(km) || km < 0) {
       return setMessage("عداد الانطلاق غير صحيح.");
-    }
-
-    const vehicle = activeVehicles.find(
-      v => v.id === form.vehicle_id
-    );
-
-    if (!vehicle) {
-      return setMessage("السيارة غير متاحة.");
-    }
-
-    if (openTrips.some(t => t.vehicle_id === form.vehicle_id)) {
-      return setMessage("هذه السيارة لديها رحلة مفتوحة بالفعل.");
     }
 
     setSaving(true);
@@ -545,7 +522,8 @@ export default function App() {
           driver_id: null,
           driver_name: form.driver_name.trim(),
           driver_matricule: form.driver_matricule.trim(),
-          vehicle_id: form.vehicle_id,
+          vehicle_id: null,
+          vehicle_name: form.vehicle_name.trim(),
           destination: form.destination.trim(),
           purpose: form.purpose.trim() || null,
           departure_km: km,
@@ -554,8 +532,7 @@ export default function App() {
           return_at: null,
           return_km: null,
           status: "out",
-          client_id: user.id,
-          vehicle_name: `${vehicle.plate} ${vehicle.label}`
+          client_id: user.id
         });
 
       if (error) throw error;
@@ -563,7 +540,7 @@ export default function App() {
       setForm({
         driver_name: "",
         driver_matricule: "",
-        vehicle_id: "",
+        vehicle_name: "",
         destination: "",
         purpose: "",
         departure_km: "",
@@ -572,6 +549,7 @@ export default function App() {
 
       setMessage("تم تسجيل الرحلة بنجاح.");
       setTab("trips");
+
       await loadData();
 
     } catch (e) {
@@ -705,7 +683,6 @@ export default function App() {
   return (
     <div style={css.page}>
 
-      {/* رأس التطبيق */}
       <header style={css.header}>
         <div>
           <h2 style={{ margin: 0 }}>🚘 PARA AUTO</h2>
@@ -720,7 +697,6 @@ export default function App() {
 
       <main style={css.container}>
 
-        {/* الرسائل */}
         {message && (
           <div style={{
             ...css.card,
@@ -743,7 +719,7 @@ export default function App() {
           gap: 12
         }}>
           {[
-            ["السيارات", vehicles.length],
+            ["السيارات المسجلة", vehicles.length],
             ["السائقون المسجلون", drivers.length],
             ["الرحلات المفتوحة", openTrips.length],
             ["الرحلات المكتملة", completedTrips.length]
@@ -755,7 +731,7 @@ export default function App() {
           ))}
         </div>
 
-        {/* القائمة الرئيسية */}
+        {/* القائمة */}
         <div style={{
           ...css.card,
           display: "flex",
@@ -769,7 +745,7 @@ export default function App() {
           {nav("drivers", "السائقون")}
         </div>
 
-        {/* تسجيل رحلة جديدة */}
+        {/* تسجيل رحلة */}
         {tab === "new" && (
           <section style={css.card}>
             <h3>🚘 تسجيل رحلة جديدة</h3>
@@ -800,23 +776,17 @@ export default function App() {
                 required
               />
 
-              <label>السيارة</label>
-              <select
+              <label>السيارة ورقم التسجيل</label>
+              <input
                 style={css.input}
-                value={form.vehicle_id}
+                type="text"
+                placeholder="مثال: Dacia Logan - 12345 أ 6"
+                value={form.vehicle_name}
                 onChange={e =>
-                  setFormValue("vehicle_id", e.target.value)
+                  setFormValue("vehicle_name", e.target.value)
                 }
                 required
-              >
-                <option value="">اختر السيارة</option>
-
-                {activeVehicles.map(v => (
-                  <option key={v.id} value={v.id}>
-                    {v.plate} - {v.label}
-                  </option>
-                ))}
-              </select>
+              />
 
               <label>الوجهة</label>
               <input
@@ -1013,8 +983,8 @@ export default function App() {
             <h2>📋 سجل جميع الرحلات</h2>
 
             <div className="no-print">
-
               <label>البحث عن رحلة</label>
+
               <input
                 style={css.input}
                 placeholder="السائق أو الماتريكيل أو السيارة أو الوجهة..."
@@ -1023,6 +993,7 @@ export default function App() {
               />
 
               <label>حالة الرحلة</label>
+
               <select
                 style={css.input}
                 value={historyStatus}
@@ -1046,7 +1017,6 @@ export default function App() {
               >
                 تحديث السجل ↻
               </button>
-
             </div>
 
             <p>
@@ -1063,7 +1033,6 @@ export default function App() {
                   marginBottom: 10,
                   pageBreakInside: "avoid"
                 }}>
-
                   <h3>{t.destination}</h3>
 
                   <p>
@@ -1129,22 +1098,19 @@ export default function App() {
                   </p>
 
                   {t.notes && <p>ملاحظات: {t.notes}</p>}
-
                 </div>
               ))
             )}
-
           </section>
         )}
 
-        {/* إدارة السائقين */}
+        {/* السائقون المسجلون */}
         {tab === "drivers" && (
           <section style={css.card}>
             <h3>قائمة السائقين المسجلين</h3>
 
             {isAdmin && (
               <form onSubmit={addDriver}>
-
                 <label>الاسم الشخصي</label>
                 <input
                   style={css.input}
@@ -1163,7 +1129,7 @@ export default function App() {
                   required
                 />
 
-                <label>Matricule - الرقم التسلسلي</label>
+                <label>Matricule</label>
                 <input
                   style={css.input}
                   placeholder="أدخل الماتريكيل"
@@ -1175,7 +1141,6 @@ export default function App() {
                 <button style={css.button} disabled={saving}>
                   إضافة سائق
                 </button>
-
               </form>
             )}
 
@@ -1184,7 +1149,6 @@ export default function App() {
                 padding: 12,
                 borderBottom: "1px solid #e2e8f0"
               }}>
-
                 <b>{d.full_name}</b>
                 <p>Matricule: {d.matricule || "غير مسجل"}</p>
 
@@ -1211,20 +1175,18 @@ export default function App() {
                     </button>
                   </>
                 )}
-
               </div>
             ))}
           </section>
         )}
 
-        {/* إدارة السيارات */}
+        {/* السيارات المسجلة */}
         {tab === "vehicles" && (
           <section style={css.card}>
-            <h3>قائمة السيارات</h3>
+            <h3>قائمة السيارات المسجلة</h3>
 
             {isAdmin && (
               <form onSubmit={addVehicle}>
-
                 <label>رقم التسجيل</label>
                 <input
                   style={css.input}
@@ -1234,7 +1196,7 @@ export default function App() {
                   required
                 />
 
-                <label>نوع السيارة / اسمها</label>
+                <label>نوع السيارة</label>
                 <input
                   style={css.input}
                   value={newLabel}
@@ -1246,7 +1208,6 @@ export default function App() {
                 <button style={css.button} disabled={saving}>
                   إضافة سيارة
                 </button>
-
               </form>
             )}
 
@@ -1255,7 +1216,6 @@ export default function App() {
                 padding: 12,
                 borderBottom: "1px solid #e2e8f0"
               }}>
-
                 <b>{v.plate} - {v.label}</b>
 
                 <span>
@@ -1282,13 +1242,11 @@ export default function App() {
                     </button>
                   </>
                 )}
-
               </div>
             ))}
           </section>
         )}
 
-        {/* أسفل التطبيق */}
         <div style={{
           textAlign: "center",
           padding: 20,
