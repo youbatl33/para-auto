@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 
@@ -49,33 +48,70 @@ const styles = {
     fontSize: 15
   },
   button: {
-    padding: "12px 20px",
+    padding: "11px 17px",
     background: "#1675c1",
     color: "white",
     border: 0,
     borderRadius: 8,
     cursor: "pointer",
-    fontSize: 15,
-    fontWeight: "bold"
+    fontSize: 14,
+    fontWeight: "bold",
+    margin: 3
   },
   secondary: {
-    padding: "10px 16px",
+    padding: "10px 15px",
     background: "#e2e8f0",
     color: "#172033",
     border: 0,
     borderRadius: 8,
-    cursor: "pointer"
+    cursor: "pointer",
+    margin: 3
+  },
+  danger: {
+    padding: "9px 13px",
+    background: "#dc2626",
+    color: "white",
+    border: 0,
+    borderRadius: 8,
+    cursor: "pointer",
+    margin: 3
   }
 };
+
+// تحميل جميع الصفوف على دفعات، دون الاقتصار على أول 1000 صف
+async function getAllRows(table) {
+  const all = [];
+  const batchSize = 1000;
+  let start = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from(table)
+      .select("*")
+      .range(start, start + batchSize - 1);
+
+    if (error) throw error;
+
+    all.push(...(data || []));
+
+    if (!data || data.length < batchSize) break;
+
+    start += batchSize;
+  }
+
+  return all;
+}
 
 function App() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
   const [drivers, setDrivers] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [trips, setTrips] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -90,25 +126,42 @@ function App() {
     notes: ""
   });
 
+  const [newDriver, setNewDriver] = useState("");
+  const [newPlate, setNewPlate] = useState("");
+  const [newLabel, setNewLabel] = useState("");
   const [returnKm, setReturnKm] = useState({});
 
   const isAdmin = profile?.role === "admin";
-  const openTrips = trips.filter(t => !t.return_at);
-  const completedTrips = trips.filter(t => !!t.return_at);
+
+  const activeDrivers = drivers.filter(d => d.active !== false);
+  const activeVehicles = vehicles.filter(v => v.active !== false);
+
+  const openTrips = trips.filter(
+    t => t.status === "out" && t.return_at == null
+  );
+
+  const completedTrips = trips.filter(
+    t => t.status === "returned" && t.return_at != null
+  );
 
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (mounted) {
-        setUser(data.session?.user || null);
-        if (!data.session?.user) setLoading(false);
-      }
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!mounted) return;
+
+      if (error) setMessage(error.message);
+
+      const currentUser = data.session?.user || null;
+      setUser(currentUser);
+
+      if (!currentUser) setLoading(false);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setUser(session?.user || null);
+
         if (!session?.user) {
           setProfile(null);
           setDrivers([]);
@@ -145,30 +198,25 @@ function App() {
       if (!p || p.active === false) {
         await supabase.auth.signOut();
         setMessage("الحساب غير مفعل أو لم يتم إنشاء الملف الشخصي.");
-        setLoading(false);
         return;
       }
 
       setProfile(p);
 
-      const results = await Promise.all([
-        supabase.from("drivers").select("*"),
-        supabase.from("vehicles").select("*").order("created_at", {
-          ascending: false
-        }),
-        supabase.from("trips").select("*").order("created_at", {
-          ascending: false
-        })
+      const [d, v, t] = await Promise.all([
+        getAllRows("drivers"),
+        getAllRows("vehicles"),
+        getAllRows("trips")
       ]);
 
-      results.forEach(result => {
-        if (result.error) throw result.error;
-      });
-
-      setDrivers(results[0].data || []);
-      setVehicles((results[1].data || []).filter(v => v.active !== false));
-      setTrips(results[2].data || []);
-
+      setDrivers(d);
+      setVehicles(v);
+      setTrips(
+        t.sort((a, b) =>
+          new Date(b.created_at || b.departure_at) -
+          new Date(a.created_at || a.departure_at)
+        )
+      );
     } catch (error) {
       setMessage("خطأ في تحميل البيانات: " + error.message);
     } finally {
@@ -187,6 +235,7 @@ function App() {
     });
 
     if (error) setMessage("تعذر الدخول: " + error.message);
+
     setSaving(false);
   }
 
@@ -198,63 +247,251 @@ function App() {
 
   function driverName(id) {
     const d = drivers.find(x => x.id === id);
-    if (!d) return "غير محدد";
-
-    return d.full_name || d.name || d.driver_name ||
-      d.first_name || d.id;
+    return d?.full_name || "غير محدد";
   }
 
   function vehicleName(id) {
     const v = vehicles.find(x => x.id === id);
-    if (!v) return "غير محددة";
-    return `${v.plate || ""} ${v.label || ""}`;
+    return v ? `${v.plate} ${v.label}` : "غير محددة";
   }
 
-  async function addTrip(e) {
+  function setFormValue(key, value) {
+    setForm(prev => ({ ...prev, [key]: value }));
+  }
+
+  // إضافة سائق جديد
+  async function addDriver(e) {
     e.preventDefault();
 
-    if (!form.driver_id || !form.vehicle_id ||
-        !form.destination || form.departure_km === "") {
-      setMessage("يرجى ملء جميع المعلومات الضرورية.");
-      return;
+    if (!isAdmin) return setMessage("هذه العملية خاصة بالمراقب الرئيسي.");
+
+    const name = newDriver.trim();
+
+    if (!name) return setMessage("أدخل اسم السائق.");
+
+    setSaving(true);
+    setMessage("");
+
+    try {
+      const { error } = await supabase
+        .from("drivers")
+        .insert({ full_name: name, active: true });
+
+      if (error) throw error;
+
+      setNewDriver("");
+      setMessage("تمت إضافة السائق بنجاح.");
+      await loadData();
+    } catch (error) {
+      setMessage("فشل إضافة السائق: " + error.message);
+    } finally {
+      setSaving(false);
     }
+  }
 
-    if (Number(form.departure_km) < 0) {
-      setMessage("قيمة عداد الانطلاق غير صحيحة.");
-      return;
-    }
+  // إضافة سيارة جديدة
+  async function addVehicle(e) {
+    e.preventDefault();
 
-    const alreadyOpen = trips.some(
-      t => t.vehicle_id === form.vehicle_id && !t.return_at
-    );
+    if (!isAdmin) return setMessage("هذه العملية خاصة بالمراقب الرئيسي.");
 
-    if (alreadyOpen) {
-      setMessage("هذه السيارة لديها رحلة مفتوحة بالفعل!");
-      return;
+    const plate = newPlate.trim();
+    const label = newLabel.trim();
+
+    if (!plate || !label) {
+      return setMessage("أدخل رقم التسجيل ونوع السيارة.");
     }
 
     setSaving(true);
     setMessage("");
 
-    const driver = drivers.find(d => d.id === form.driver_id);
+    try {
+      const { error } = await supabase
+        .from("vehicles")
+        .insert({ plate, label, active: true });
 
-    const { error } = await supabase.from("trips").insert({
-      driver_id: form.driver_id,
-      vehicle_id: form.vehicle_id,
-      destination: form.destination,
-      purpose: form.purpose || null,
-      departure_km: Number(form.departure_km),
-      notes: form.notes || null,
-      departure_at: new Date().toISOString(),
-      status: "open",
-      client_id: user.id,
-      driver_name: driverName(form.driver_id)
-    });
+      if (error) throw error;
+
+      setNewPlate("");
+      setNewLabel("");
+      setMessage("تمت إضافة السيارة بنجاح.");
+      await loadData();
+    } catch (error) {
+      setMessage("فشل إضافة السيارة: " + error.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // تعديل معلومات السائق
+  async function editDriver(driver) {
+    if (!isAdmin) return;
+
+    const name = window.prompt("الاسم الجديد للسائق:", driver.full_name);
+
+    if (name === null || !name.trim()) return;
+
+    setSaving(true);
+
+    const { error } = await supabase
+      .from("drivers")
+      .update({ full_name: name.trim() })
+      .eq("id", driver.id);
+
+    setSaving(false);
 
     if (error) {
-      setMessage("فشل تسجيل الرحلة: " + error.message);
+      setMessage("تعذر تعديل السائق: " + error.message);
     } else {
-      setMessage("تم تسجيل الرحلة بنجاح.");
+      setMessage("تم تعديل السائق.");
+      await loadData();
+    }
+  }
+
+  // تعديل معلومات السيارة
+  async function editVehicle(vehicle) {
+    if (!isAdmin) return;
+
+    const plate = window.prompt("رقم التسجيل:", vehicle.plate);
+    if (plate === null || !plate.trim()) return;
+
+    const label = window.prompt("نوع السيارة:", vehicle.label);
+    if (label === null || !label.trim()) return;
+
+    setSaving(true);
+
+    const { error } = await supabase
+      .from("vehicles")
+      .update({
+        plate: plate.trim(),
+        label: label.trim()
+      })
+      .eq("id", vehicle.id);
+
+    setSaving(false);
+
+    if (error) {
+      setMessage("تعذر تعديل السيارة: " + error.message);
+    } else {
+      setMessage("تم تعديل السيارة.");
+      await loadData();
+    }
+  }
+
+  // تعطيل سائق دون حذف سجلاته
+  async function deactivateDriver(driver) {
+    if (!isAdmin) return;
+
+    const busy = openTrips.some(t => t.driver_id === driver.id);
+
+    if (busy) {
+      return setMessage("لا يمكن تعطيل سائق لديه رحلة مفتوحة.");
+    }
+
+    if (!window.confirm("هل تريد تعطيل هذا السائق؟")) return;
+
+    setSaving(true);
+
+    const { error } = await supabase
+      .from("drivers")
+      .update({ active: false })
+      .eq("id", driver.id);
+
+    setSaving(false);
+
+    if (error) {
+      setMessage("تعذر تعطيل السائق: " + error.message);
+    } else {
+      setMessage("تم تعطيل السائق.");
+      await loadData();
+    }
+  }
+
+  // تعطيل سيارة دون حذف سجلاتها
+  async function deactivateVehicle(vehicle) {
+    if (!isAdmin) return;
+
+    const busy = openTrips.some(t => t.vehicle_id === vehicle.id);
+
+    if (busy) {
+      return setMessage("لا يمكن تعطيل سيارة لديها رحلة مفتوحة.");
+    }
+
+    if (!window.confirm("هل تريد تعطيل هذه السيارة؟")) return;
+
+    setSaving(true);
+
+    const { error } = await supabase
+      .from("vehicles")
+      .update({ active: false })
+      .eq("id", vehicle.id);
+
+    setSaving(false);
+
+    if (error) {
+      setMessage("تعذر تعطيل السيارة: " + error.message);
+    } else {
+      setMessage("تم تعطيل السيارة.");
+      await loadData();
+    }
+  }
+
+  // تسجيل رحلة جديدة
+  async function addTrip(e) {
+    e.preventDefault();
+
+    if (
+      !form.driver_id ||
+      !form.vehicle_id ||
+      !form.destination.trim() ||
+      form.departure_km === ""
+    ) {
+      return setMessage("يرجى ملء جميع المعلومات الضرورية.");
+    }
+
+    const km = Number(form.departure_km);
+
+    if (!Number.isInteger(km) || km < 0) {
+      return setMessage("عداد الانطلاق يجب أن يكون رقماً صحيحاً غير سالب.");
+    }
+
+    const driver = activeDrivers.find(d => d.id === form.driver_id);
+    const vehicle = activeVehicles.find(v => v.id === form.vehicle_id);
+
+    if (!driver || !vehicle) {
+      return setMessage("السائق أو السيارة غير متاح.");
+    }
+
+    const alreadyOpen = openTrips.some(
+      t => t.vehicle_id === form.vehicle_id
+    );
+
+    if (alreadyOpen) {
+      return setMessage("هذه السيارة لديها رحلة مفتوحة بالفعل.");
+    }
+
+    setSaving(true);
+    setMessage("");
+
+    try {
+      const { error } = await supabase.from("trips").insert({
+        driver_id: form.driver_id,
+        vehicle_id: form.vehicle_id,
+        destination: form.destination.trim(),
+        purpose: form.purpose.trim() || null,
+        departure_km: km,
+        notes: form.notes.trim() || null,
+        departure_at: new Date().toISOString(),
+        return_at: null,
+        return_km: null,
+        status: "out",
+        client_id: user.id,
+        driver_name: driver.full_name,
+        vehicle_name: `${vehicle.plate} ${vehicle.label}`
+      });
+
+      if (error) throw error;
+
       setForm({
         driver_id: "",
         vehicle_id: "",
@@ -263,371 +500,63 @@ function App() {
         departure_km: "",
         notes: ""
       });
-      await loadData();
-    }
 
-    setSaving(false);
+      setMessage("تم تسجيل الرحلة بنجاح.");
+      setTab("trips");
+      await loadData();
+    } catch (error) {
+      setMessage("فشل تسجيل الرحلة: " + error.message);
+    } finally {
+      setSaving(false);
+    }
   }
 
+  // تسجيل عودة السيارة
   async function finishTrip(trip) {
-    const km = returnKm[trip.id];
+    const value = returnKm[trip.id];
 
-    if (km === undefined || km === "") {
-      setMessage("أدخل عداد الكيلومترات عند العودة.");
-      return;
+    if (value === undefined || value === "") {
+      return setMessage("أدخل عداد الكيلومترات عند العودة.");
     }
 
-    if (Number(km) < Number(trip.departure_km)) {
-      setMessage("عداد العودة لا يمكن أن يكون أقل من عداد الانطلاق.");
-      return;
+    const km = Number(value);
+
+    if (!Number.isInteger(km) || km < Number(trip.departure_km)) {
+      return setMessage(
+        "عداد العودة يجب أن يكون رقماً صحيحاً وأكبر من أو يساوي عداد الانطلاق."
+      );
     }
 
     if (!window.confirm("هل تريد تأكيد عودة السيارة؟")) return;
 
     setSaving(true);
+    setMessage("");
 
-    const { error } = await supabase
-      .from("trips")
-      .update({
-        return_km: Number(km),
-        return_at: new Date().toISOString(),
-        status: "completed"
-      })
-      .eq("id", trip.id)
-      .is("return_at", null);
+    try {
+      const { data, error } = await supabase
+        .from("trips")
+        .update({
+          return_km: km,
+          return_at: new Date().toISOString(),
+          status: "returned"
+        })
+        .eq("id", trip.id)
+        .eq("status", "out")
+        .is("return_at", null)
+        .select("id");
 
-    if (error) {
-      setMessage("تعذر تسجيل العودة: " + error.message);
-    } else {
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        throw new Error("لم يتم تحديث الرحلة. تحقق من الصلاحيات أو حالة الرحلة.");
+      }
+
+      setReturnKm(prev => ({ ...prev, [trip.id]: "" }));
       setMessage("تم تسجيل عودة السيارة بنجاح.");
       await loadData();
+    } catch (error) {
+      setMessage("تعذر تسجيل العودة: " + error.message);
+    } finally {
+      setSaving(false);
     }
-
-    setSaving(false);
   }
-
-  const field = (label, value, onChange, type = "text") => (
-    <label style={{ display: "block", fontWeight: "bold" }}>
-      {label}
-      <input
-        style={styles.input}
-        type={type}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        required
-      />
-    </label>
-  );
-
-  if (!user) {
-    return (
-      <div style={styles.page}>
-        <div style={{
-          ...styles.card,
-          maxWidth: 400,
-          margin: "80px auto",
-          textAlign: "center"
-        }}>
-          <h1>🚘 PARA AUTO</h1>
-          <p>نظام تدبير وتتبع السيارات والرحلات</p>
-
-          <form onSubmit={login}>
-            {field("البريد الإلكتروني", email, setEmail, "email")}
-            {field("كلمة المرور", password, setPassword, "password")}
-
-            <button style={styles.button} disabled={saving}>
-              {saving ? "جارٍ الدخول..." : "تسجيل الدخول"}
-            </button>
-          </form>
-
-          {message && <p style={{ color: "red" }}>{message}</p>}
-        </div>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return <div style={styles.page}><h2 style={{textAlign:"center",padding:50}}>جارٍ تحميل البيانات...</h2></div>;
-  }
-
-  return (
-    <div style={styles.page}>
-      <header style={styles.header}>
-        <div>
-          <h2 style={{ margin: 0 }}>🚘 PARA AUTO</h2>
-          <small>نظام تدبير السيارات والرحلات</small>
-        </div>
-
-        <div>
-          {profile?.full_name || user.email}
-          {" "}
-          <button style={styles.secondary} onClick={logout}>
-            خروج
-          </button>
-        </div>
-      </header>
-
-      <main style={styles.container}>
-        {message && (
-          <div style={{
-            ...styles.card,
-            color: "#155e35",
-            borderRight: "4px solid #16a34a"
-          }}>
-            {message}
-            <button
-              style={{ ...styles.secondary, float: "left" }}
-              onClick={() => setMessage("")}
-            >
-              إغلاق
-            </button>
-          </div>
-        )}
-
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))",
-          gap: 12
-        }}>
-          {[
-            ["السيارات", vehicles.length],
-            ["السائقون", drivers.length],
-            ["الرحلات المفتوحة", openTrips.length],
-            ["الرحلات المكتملة", completedTrips.length]
-          ].map(([label, number]) => (
-            <div key={label} style={styles.card}>
-              <div>{label}</div>
-              <h2 style={{ color: "#1675c1" }}>{number}</h2>
-            </div>
-          ))}
-        </div>
-
-        <div style={{
-          display: "flex",
-          gap: 8,
-          flexWrap: "wrap",
-          marginBottom: 18
-        }}>
-          {[
-            ["trips", "الرحلات"],
-            ["new", "تسجيل رحلة"],
-            ["vehicles", "السيارات"],
-            ["drivers", "السائقون"]
-          ].map(([id, label]) => (
-            <button
-              key={id}
-              style={{
-                ...styles.button,
-                background: tab === id ? "#102b46" : "#64748b"
-              }}
-              onClick={() => setTab(id)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {tab === "new" && (
-          <section style={styles.card}>
-            <h2>تسجيل رحلة جديدة</h2>
-
-            <form onSubmit={addTrip}>
-              <label>
-                السائق
-                <select
-                  style={styles.input}
-                  value={form.driver_id}
-                  onChange={e => setForm({
-                    ...form,
-                    driver_id: e.target.value
-                  })}
-                  required
-                >
-                  <option value="">اختر السائق</option>
-                  {drivers.map(d => (
-                    <option key={d.id} value={d.id}>
-                      {driverName(d.id)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                السيارة
-                <select
-                  style={styles.input}
-                  value={form.vehicle_id}
-                  onChange={e => setForm({
-                    ...form,
-                    vehicle_id: e.target.value
-                  })}
-                  required
-                >
-                  <option value="">اختر السيارة</option>
-                  {vehicles.map(v => (
-                    <option key={v.id} value={v.id}>
-                      {vehicleName(v.id)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              {field("الوجهة", form.destination, v =>
-                setForm({ ...form, destination: v })
-              )}
-
-              {field("الغرض من الرحلة", form.purpose, v =>
-                setForm({ ...form, purpose: v })
-              )}
-
-              {field("عداد الكيلومترات عند الانطلاق", form.departure_km, v =>
-                setForm({ ...form, departure_km: v })
-              , "number")}
-
-              <label>
-                ملاحظات
-                <textarea
-                  style={styles.input}
-                  value={form.notes}
-                  onChange={e => setForm({
-                    ...form,
-                    notes: e.target.value
-                  })}
-                />
-              </label>
-
-              <button style={styles.button} disabled={saving}>
-                {saving ? "جارٍ التسجيل..." : "تأكيد تسجيل الرحلة"}
-              </button>
-            </form>
-          </section>
-        )}
-
-        {tab === "trips" && (
-          <>
-            <section style={styles.card}>
-              <h2>الرحلات المفتوحة</h2>
-
-              {openTrips.length === 0 && <p>لا توجد رحلات مفتوحة حاليا.</p>}
-
-              {openTrips.map(t => (
-                <div key={t.id} style={{
-                  border: "1px solid #dbe3ec",
-                  padding: 15,
-                  borderRadius: 9,
-                  marginBottom: 12
-                }}>
-                  <h3>{t.destination}</h3>
-                  <p>السائق: {t.driver_name || driverName(t.driver_id)}</p>
-                  <p>السيارة: {vehicleName(t.vehicle_id)}</p>
-                  <p>الغرض: {t.purpose || "غير محدد"}</p>
-                  <p>عداد الانطلاق: {t.departure_km} كم</p>
-                  <p>
-                    تاريخ الانطلاق:
-                    {" "}
-                    {t.departure_at
-                      ? new Date(t.departure_at).toLocaleString("ar-MA")
-                      : "غير محدد"}
-                  </p>
-
-                  <label>
-                    عداد الكيلومترات عند العودة
-                    <input
-                      style={styles.input}
-                      type="number"
-                      value={returnKm[t.id] || ""}
-                      onChange={e => setReturnKm({
-                        ...returnKm,
-                        [t.id]: e.target.value
-                      })}
-                    />
-                  </label>
-
-                  <button
-                    style={{ ...styles.button, background: "#16834b" }}
-                    disabled={saving}
-                    onClick={() => finishTrip(t)}
-                  >
-                    تسجيل العودة
-                  </button>
-                </div>
-              ))}
-            </section>
-
-            <section style={styles.card}>
-              <h2>سجل الرحلات المكتملة</h2>
-              {completedTrips.length === 0 && <p>لا توجد رحلات مكتملة.</p>}
-
-              {completedTrips.map(t => (
-                <div key={t.id} style={{
-                  borderBottom: "1px solid #ddd",
-                  padding: 12
-                }}>
-                  <strong>{t.destination}</strong>
-                  <p>السائق: {t.driver_name || driverName(t.driver_id)}</p>
-                  <p>السيارة: {vehicleName(t.vehicle_id)}</p>
-                  <p>
-                    المسافة المقطوعة:
-                    {" "}
-                    {Number(t.return_km) - Number(t.departure_km)} كم
-                  </p>
-                  <p>
-                    الانطلاق: {t.departure_km} كم
-                    {" | "}
-                    العودة: {t.return_km} كم
-                  </p>
-                </div>
-              ))}
-            </section>
-          </>
-        )}
-
-        {tab === "vehicles" && (
-          <section style={styles.card}>
-            <h2>قائمة السيارات</h2>
-            {vehicles.map(v => (
-              <div key={v.id} style={{
-                padding: 12,
-                borderBottom: "1px solid #ddd"
-              }}>
-                <strong>{v.plate}</strong>
-                {" — "}
-                {v.label}
-                <p>
-                  الحالة:
-                  {" "}
-                  {openTrips.some(t => t.vehicle_id === v.id)
-                    ? "في رحلة"
-                    : "متاحة"}
-                </p>
-              </div>
-            ))}
-          </section>
-        )}
-
-        {tab === "drivers" && (
-          <section style={styles.card}>
-            <h2>قائمة السائقين</h2>
-            {drivers.map(d => (
-              <div key={d.id} style={{
-                padding: 12,
-                borderBottom: "1px solid #ddd"
-              }}>
-                {driverName(d.id)}
-              </div>
-            ))}
-          </section>
-        )}
-
-        <div style={{ textAlign: "center", padding: 20 }}>
-          <button style={styles.secondary} onClick={loadData}>
-            تحديث البيانات ↻
-          </button>
-          <p style={{ color: "#64748b" }}>PARA AUTO © 2026</p>
-        </div>
-      </main>
-    </div>
-  );
-}
-
-export default App;
