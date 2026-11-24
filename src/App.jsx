@@ -117,6 +117,39 @@ function generateReturnCode() {
     .toUpperCase();
 }
 
+// تنسيق التاريخ والوقت حسب توقيت الهاتف
+function formatDateTime(value) {
+  if (!value) return "-";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "-";
+
+  return date.toLocaleString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  });
+}
+
+// تنسيق الساعة فقط
+function formatTime(value) {
+  if (!value) return "-";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "-";
+
+  return date.toLocaleTimeString("fr-FR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  });
+}
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -546,6 +579,9 @@ export default function App() {
 
     const generatedCode = generateReturnCode();
 
+    // تسجيل وقت الانطلاق لحظة تأكيد الرحلة
+    const departureTime = new Date().toISOString();
+
     try {
       const { error } = await supabase
         .from("trips")
@@ -559,7 +595,7 @@ export default function App() {
           purpose: form.purpose.trim() || null,
           departure_km: km,
           notes: form.notes.trim() || null,
-          departure_at: new Date().toISOString(),
+          departure_at: departureTime,
           return_at: null,
           return_km: null,
           status: "out",
@@ -572,7 +608,9 @@ export default function App() {
       setForm(emptyForm);
       setNewTripCode(generatedCode);
 
-      setMessage("تم تسجيل الرحلة بنجاح. احتفظ بالرمز السري لتسجيل العودة.");
+      setMessage(
+        "تم تسجيل الرحلة بنجاح. احتفظ بالرمز السري لتسجيل العودة."
+      );
 
       if (user) {
         setTab("trips");
@@ -610,12 +648,15 @@ export default function App() {
     setSaving(true);
     setMessage("");
 
+    // تسجيل وقت العودة لحظة التأكيد
+    const returnTime = new Date().toISOString();
+
     try {
       const { data, error } = await supabase
         .from("trips")
         .update({
           return_km: km,
-          return_at: new Date().toISOString(),
+          return_at: returnTime,
           status: "returned"
         })
         .eq("id", trip.id)
@@ -1179,6 +1220,11 @@ export default function App() {
 
                   <p>عداد الانطلاق: {t.departure_km} KM</p>
 
+                  <p>
+                    🕒 وقت الانطلاق:
+                    <b> {formatDateTime(t.departure_at)}</b>
+                  </p>
+
                   <input
                     style={css.input}
                     type="number"
@@ -1236,11 +1282,15 @@ export default function App() {
                     المسافة: {Number(t.return_km) - Number(t.departure_km)} KM
                   </p>
 
-                  <small>
-                    {t.return_at
-                      ? new Date(t.return_at).toLocaleString("fr-FR")
-                      : ""}
-                  </small>
+                  <p>
+                    🕒 وقت الانطلاق:
+                    <b> {formatDateTime(t.departure_at)}</b>
+                  </p>
+
+                  <p>
+                    🕒 وقت العودة:
+                    <b> {formatDateTime(t.return_at)}</b>
+                  </p>
                 </div>
               ))}
             </section>
@@ -1354,19 +1404,13 @@ export default function App() {
                   </p>
 
                   <p>
-                    تاريخ الانطلاق: {
-                      t.departure_at
-                        ? new Date(t.departure_at).toLocaleString("fr-FR")
-                        : "-"
-                    }
+                    🕒 تاريخ ووقت الانطلاق:
+                    <b> {formatDateTime(t.departure_at)}</b>
                   </p>
 
                   <p>
-                    تاريخ العودة: {
-                      t.return_at
-                        ? new Date(t.return_at).toLocaleString("fr-FR")
-                        : "-"
-                    }
+                    🕒 تاريخ ووقت العودة:
+                    <b> {formatDateTime(t.return_at)}</b>
                   </p>
 
                   {t.notes && <p>ملاحظات: {t.notes}</p>}
