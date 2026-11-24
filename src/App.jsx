@@ -7,6 +7,9 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
+const APP_NAME = "GIGR FLEET";
+const APP_SUBTITLE = "GESTION DU PARC AUTOMOBILE";
+
 const css = {
   page: {
     minHeight: "100vh",
@@ -16,14 +19,15 @@ const css = {
     color: "#172033"
   },
   header: {
-    background: "#102b46",
+    background: "#102b24",
     color: "white",
     padding: 20,
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
     flexWrap: "wrap",
-    gap: 10
+    gap: 10,
+    borderBottom: "4px solid #c6a65b"
   },
   container: {
     maxWidth: 1150,
@@ -48,7 +52,7 @@ const css = {
   },
   button: {
     padding: "11px 16px",
-    background: "#1675c1",
+    background: "#176044",
     color: "white",
     border: 0,
     borderRadius: 8,
@@ -74,6 +78,98 @@ const css = {
     margin: 3
   }
 };
+
+// الشعار الجديد GIGR FLEET
+function GigrLogo({ compact = false }) {
+  return (
+    <div style={{
+      display: "flex",
+      alignItems: "center",
+      gap: 12,
+      direction: "ltr"
+    }}>
+      <div style={{
+        width: compact ? 54 : 76,
+        height: compact ? 54 : 76,
+        borderRadius: "50%",
+        background: "linear-gradient(145deg,#244c38,#071b13)",
+        border: "3px solid #c6a65b",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+        boxShadow: "0 3px 10px #0005"
+      }}>
+        <svg viewBox="0 0 100 100" width="90%" height="90%">
+          <path
+            d="M50 5 L59 13 L72 12 L78 23 L91 30 L87 44 L94 55 L85 66 L84 80 L69 84 L61 95 L49 90 L36 95 L29 84 L15 80 L14 66 L5 55 L12 44 L8 30 L21 23 L27 12 L40 13 Z"
+            fill="none"
+            stroke="#d8bd77"
+            strokeWidth="2.5"
+          />
+
+          <path
+            d="M50 12 L55 23 L67 25 L58 34 L60 46 L50 40 L40 46 L42 34 L33 25 L45 23 Z"
+            fill="#d8bd77"
+          />
+
+          <path
+            d="M18 58 L24 43 Q27 37 35 37 H66 Q74 37 77 44 L83 58 V69 H18 Z"
+            fill="#d8bd77"
+            stroke="#ffffff"
+            strokeWidth="2"
+          />
+
+          <path
+            d="M31 42 H69 L76 56 H24 Z"
+            fill="#173c2b"
+          />
+
+          <path
+            d="M50 43 V55"
+            stroke="#d8bd77"
+            strokeWidth="2"
+          />
+
+          <circle cx="32" cy="70" r="7" fill="#071b13" stroke="#d8bd77" strokeWidth="2"/>
+          <circle cx="69" cy="70" r="7" fill="#071b13" stroke="#d8bd77" strokeWidth="2"/>
+
+          <text
+            x="50"
+            y="88"
+            textAnchor="middle"
+            fontSize="12"
+            fontWeight="bold"
+            fill="#ffffff"
+            letterSpacing="1"
+          >
+            GIGR
+          </text>
+        </svg>
+      </div>
+
+      <div style={{ textAlign: "left" }}>
+        <div style={{
+          fontSize: compact ? 21 : 29,
+          fontWeight: 900,
+          letterSpacing: 2,
+          color: "#d8bd77"
+        }}>
+          GIGR FLEET
+        </div>
+
+        <div style={{
+          fontSize: compact ? 8 : 10,
+          color: "#ffffff",
+          letterSpacing: 1,
+          fontWeight: "bold"
+        }}>
+          GESTION DU PARC AUTOMOBILE
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // تحميل جميع السجلات
 async function getAllRows(table) {
@@ -129,20 +225,6 @@ function formatDateTime(value) {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false
-  });
-}
-
-function formatTime(value) {
-  if (!value) return "-";
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) return "-";
-
-  return date.toLocaleTimeString("fr-FR", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false
@@ -831,22 +913,22 @@ export default function App() {
       return setMessage("عداد الانطلاق غير صحيح.");
     }
 
-    let returnKm = trip.return_km;
+    let returnKmValue = trip.return_km;
 
     if (trip.return_km !== null && trip.return_km !== undefined) {
-      const returnKmValue = window.prompt(
+      const value = window.prompt(
         "عداد العودة KM:",
         String(trip.return_km)
       );
 
-      if (returnKmValue === null) return;
+      if (value === null) return;
 
-      returnKm = Number(returnKmValue);
+      returnKmValue = Number(value);
 
       if (
-        returnKmValue.trim() === "" ||
-        !Number.isInteger(returnKm) ||
-        returnKm < departureKm
+        value.trim() === "" ||
+        !Number.isInteger(returnKmValue) ||
+        returnKmValue < departureKm
       ) {
         return setMessage(
           "عداد العودة يجب أن يكون أكبر من أو يساوي عداد الانطلاق."
@@ -875,7 +957,7 @@ export default function App() {
           destination: destinationValue.trim(),
           purpose: purposeValue.trim() || null,
           departure_km: departureKm,
-          return_km: returnKm,
+          return_km: returnKmValue,
           notes: notesValue.trim() || null
         })
         .eq("id", trip.id)
@@ -963,6 +1045,25 @@ export default function App() {
     }
   }
 
+  // الفوتر
+  const footer = (
+    <div style={{
+      textAlign: "center",
+      padding: 20,
+      color: "#64748b",
+      fontWeight: "bold"
+    }}>
+      {APP_NAME} © 2026
+      <div style={{
+        fontSize: 11,
+        marginTop: 5,
+        letterSpacing: 1
+      }}>
+        {APP_SUBTITLE}
+      </div>
+    </div>
+  );
+
   // شاشة التحميل
   if (loading) {
     return (
@@ -971,7 +1072,14 @@ export default function App() {
         padding: 40,
         textAlign: "center"
       }}>
-        جاري تحميل PARA AUTO...
+        <div style={{
+          display: "flex",
+          justifyContent: "center",
+          marginBottom: 20
+        }}>
+          <GigrLogo />
+        </div>
+        جاري تحميل GIGR FLEET...
       </div>
     );
   }
@@ -982,8 +1090,10 @@ export default function App() {
       <div style={css.page}>
         <header style={css.header}>
           <div>
-            <h2 style={{ margin: 0 }}>🚘 PARA AUTO</h2>
-            <div>نظام تدبير السيارات والرحلات</div>
+            <GigrLogo />
+            <div style={{ marginTop: 8, fontSize: 13 }}>
+              نظام تدبير السيارات والرحلات
+            </div>
           </div>
 
           <button
@@ -998,7 +1108,7 @@ export default function App() {
           {message && (
             <div style={{
               ...css.card,
-              borderRight: "5px solid #1675c1"
+              borderRight: "5px solid #176044"
             }}>
               {message}
               <button
@@ -1195,13 +1305,7 @@ export default function App() {
             </form>
           </section>
 
-          <div style={{
-            textAlign: "center",
-            padding: 20,
-            color: "#64748b"
-          }}>
-            PARA AUTO © 2026
-          </div>
+          {footer}
         </main>
       </div>
     );
@@ -1221,8 +1325,10 @@ export default function App() {
     <div style={css.page}>
       <header style={css.header}>
         <div>
-          <h2 style={{ margin: 0 }}>🚘 PARA AUTO</h2>
-          <div>نظام تدبير السيارات والرحلات</div>
+          <GigrLogo />
+          <div style={{ marginTop: 8, fontSize: 13 }}>
+            نظام تدبير السيارات والرحلات
+          </div>
           <small>{profile?.full_name || user.email}</small>
         </div>
 
@@ -1235,7 +1341,7 @@ export default function App() {
         {message && (
           <div style={{
             ...css.card,
-            borderRight: "5px solid #1675c1"
+            borderRight: "5px solid #176044"
           }}>
             {message}
             <button
@@ -1805,13 +1911,7 @@ export default function App() {
           </section>
         )}
 
-        <div style={{
-          textAlign: "center",
-          padding: 20,
-          color: "#64748b"
-        }}>
-          PARA AUTO © 2026
-        </div>
+        {footer}
 
         <button
           style={css.secondary}
