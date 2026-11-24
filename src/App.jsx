@@ -13,13 +13,13 @@ const APP_SUBTITLE = "GESTION DU PARC AUTOMOBILE";
 const css = {
   page: {
     minHeight: "100vh",
-    background: "#f1f5f9",
+    background: "#080b12",
     direction: "rtl",
     fontFamily: "Arial, sans-serif",
-    color: "#172033"
+    color: "#f1f5f9"
   },
   header: {
-    background: "#102b24",
+    background: "linear-gradient(135deg,#02040a,#101b2d)",
     color: "white",
     padding: 20,
     display: "flex",
@@ -27,7 +27,8 @@ const css = {
     alignItems: "center",
     flexWrap: "wrap",
     gap: 10,
-    borderBottom: "4px solid #c6a65b"
+    borderBottom: "3px solid #087cff",
+    boxShadow: "0 4px 20px #006eff22"
   },
   container: {
     maxWidth: 1150,
@@ -35,51 +36,58 @@ const css = {
     padding: 16
   },
   card: {
-    background: "white",
+    background: "#111827",
+    border: "1px solid #26364d",
     borderRadius: 12,
     padding: 18,
     marginBottom: 18,
-    boxShadow: "0 2px 8px #0000000c"
+    boxShadow: "0 4px 16px #0006",
+    color: "#e5e7eb"
   },
   input: {
     width: "100%",
     boxSizing: "border-box",
     padding: 12,
-    border: "1px solid #cbd5e1",
+    background: "#080f1b",
+    color: "#ffffff",
+    border: "1px solid #334967",
     borderRadius: 8,
     marginTop: 7,
-    marginBottom: 14
+    marginBottom: 14,
+    outlineColor: "#087cff"
   },
   button: {
     padding: "11px 16px",
-    background: "#176044",
+    background: "linear-gradient(135deg,#087cff,#0054c7)",
     color: "white",
-    border: 0,
+    border: "1px solid #168cff",
     borderRadius: 8,
     cursor: "pointer",
-    margin: 3
+    margin: 3,
+    fontWeight: "bold",
+    boxShadow: "0 3px 10px #006eff33"
   },
   secondary: {
     padding: "10px 14px",
-    background: "#e2e8f0",
-    color: "#172033",
-    border: 0,
+    background: "#1b293c",
+    color: "#dbeafe",
+    border: "1px solid #345477",
     borderRadius: 8,
     cursor: "pointer",
     margin: 3
   },
   danger: {
     padding: "9px 13px",
-    background: "#dc2626",
+    background: "#991b1b",
     color: "white",
-    border: 0,
+    border: "1px solid #ef4444",
     borderRadius: 8,
     cursor: "pointer",
     margin: 3
   }
 };
 
-// الشعار الجديد GIGR FLEET
+// شعار GIGR FLEET بالأسود والأزرق
 function GigrLogo({ compact = false }) {
   return (
     <div style={{
@@ -89,56 +97,58 @@ function GigrLogo({ compact = false }) {
       direction: "ltr"
     }}>
       <div style={{
-        width: compact ? 54 : 76,
-        height: compact ? 54 : 76,
-        borderRadius: "50%",
-        background: "linear-gradient(145deg,#244c38,#071b13)",
-        border: "3px solid #c6a65b",
+        width: compact ? 58 : 78,
+        height: compact ? 64 : 84,
+        background: "linear-gradient(145deg,#111827,#020408)",
+        border: "2px solid #087cff",
+        clipPath: "polygon(50% 0%,94% 15%,88% 68%,50% 100%,12% 68%,6% 15%)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         flexShrink: 0,
-        boxShadow: "0 3px 10px #0005"
+        boxShadow: "0 0 18px #087cff55"
       }}>
-        <svg viewBox="0 0 100 100" width="90%" height="90%">
+        <svg viewBox="0 0 100 110" width="90%" height="90%">
           <path
-            d="M50 5 L59 13 L72 12 L78 23 L91 30 L87 44 L94 55 L85 66 L84 80 L69 84 L61 95 L49 90 L36 95 L29 84 L15 80 L14 66 L5 55 L12 44 L8 30 L21 23 L27 12 L40 13 Z"
+            d="M50 5 L91 20 L85 70 L50 103 L15 70 L9 20 Z"
             fill="none"
-            stroke="#d8bd77"
-            strokeWidth="2.5"
+            stroke="#168cff"
+            strokeWidth="3"
           />
 
           <path
-            d="M50 12 L55 23 L67 25 L58 34 L60 46 L50 40 L40 46 L42 34 L33 25 L45 23 Z"
-            fill="#d8bd77"
+            d="M50 15 L55 26 L68 28 L59 37 L61 49 L50 43 L39 49 L41 37 L32 28 L45 26 Z"
+            fill="#168cff"
           />
 
           <path
-            d="M18 58 L24 43 Q27 37 35 37 H66 Q74 37 77 44 L83 58 V69 H18 Z"
-            fill="#d8bd77"
+            d="M17 65 L24 49 Q27 43 35 43 H65 Q73 43 76 49 L83 65 V76 H17 Z"
+            fill="#087cff"
             stroke="#ffffff"
-            strokeWidth="2"
+            strokeWidth="1.5"
           />
 
           <path
-            d="M31 42 H69 L76 56 H24 Z"
-            fill="#173c2b"
+            d="M30 48 H70 L76 62 H24 Z"
+            fill="#07111f"
+            stroke="#64b5ff"
+            strokeWidth="1.5"
           />
 
           <path
-            d="M50 43 V55"
-            stroke="#d8bd77"
+            d="M50 49 V62"
+            stroke="#168cff"
             strokeWidth="2"
           />
 
-          <circle cx="32" cy="70" r="7" fill="#071b13" stroke="#d8bd77" strokeWidth="2"/>
-          <circle cx="69" cy="70" r="7" fill="#071b13" stroke="#d8bd77" strokeWidth="2"/>
+          <circle cx="32" cy="76" r="7" fill="#020408" stroke="#168cff" strokeWidth="2.5"/>
+          <circle cx="68" cy="76" r="7" fill="#020408" stroke="#168cff" strokeWidth="2.5"/>
 
           <text
             x="50"
-            y="88"
+            y="96"
             textAnchor="middle"
-            fontSize="12"
+            fontSize="13"
             fontWeight="bold"
             fill="#ffffff"
             letterSpacing="1"
@@ -150,21 +160,32 @@ function GigrLogo({ compact = false }) {
 
       <div style={{ textAlign: "left" }}>
         <div style={{
-          fontSize: compact ? 21 : 29,
+          fontSize: compact ? 22 : 30,
           fontWeight: 900,
-          letterSpacing: 2,
-          color: "#d8bd77"
+          letterSpacing: 3,
+          color: "#ffffff",
+          textShadow: "0 0 12px #087cff66"
         }}>
-          GIGR FLEET
+          GIGR
+        </div>
+
+        <div style={{
+          fontSize: compact ? 15 : 19,
+          color: "#168cff",
+          letterSpacing: 5,
+          fontWeight: 900
+        }}>
+          FLEET
         </div>
 
         <div style={{
           fontSize: compact ? 8 : 10,
-          color: "#ffffff",
+          color: "#a9bdd8",
           letterSpacing: 1,
-          fontWeight: "bold"
+          fontWeight: "bold",
+          marginTop: 4
         }}>
-          GESTION DU PARC AUTOMOBILE
+          INTERVENTION RAPIDE
         </div>
       </div>
     </div>
@@ -1050,14 +1071,15 @@ export default function App() {
     <div style={{
       textAlign: "center",
       padding: 20,
-      color: "#64748b",
+      color: "#8ba3c2",
       fontWeight: "bold"
     }}>
       {APP_NAME} © 2026
       <div style={{
         fontSize: 11,
         marginTop: 5,
-        letterSpacing: 1
+        letterSpacing: 1,
+        color: "#168cff"
       }}>
         {APP_SUBTITLE}
       </div>
@@ -1091,7 +1113,7 @@ export default function App() {
         <header style={css.header}>
           <div>
             <GigrLogo />
-            <div style={{ marginTop: 8, fontSize: 13 }}>
+            <div style={{ marginTop: 8, fontSize: 13, color: "#a9bdd8" }}>
               نظام تدبير السيارات والرحلات
             </div>
           </div>
@@ -1108,7 +1130,7 @@ export default function App() {
           {message && (
             <div style={{
               ...css.card,
-              borderRight: "5px solid #176044"
+              borderRight: "5px solid #087cff"
             }}>
               {message}
               <button
@@ -1243,7 +1265,7 @@ export default function App() {
           {newTripCode && (
             <section style={{
               ...css.card,
-              border: "2px solid #16a34a",
+              border: "2px solid #087cff",
               textAlign: "center"
             }}>
               <h3>✅ تم تسجيل الرحلة بنجاح</h3>
@@ -1254,7 +1276,7 @@ export default function App() {
               <h2 style={{
                 direction: "ltr",
                 letterSpacing: 3,
-                color: "#166534",
+                color: "#168cff",
                 overflowWrap: "anywhere"
               }}>
                 {newTripCode}
@@ -1326,7 +1348,7 @@ export default function App() {
       <header style={css.header}>
         <div>
           <GigrLogo />
-          <div style={{ marginTop: 8, fontSize: 13 }}>
+          <div style={{ marginTop: 8, fontSize: 13, color: "#a9bdd8" }}>
             نظام تدبير السيارات والرحلات
           </div>
           <small>{profile?.full_name || user.email}</small>
@@ -1341,7 +1363,7 @@ export default function App() {
         {message && (
           <div style={{
             ...css.card,
-            borderRight: "5px solid #176044"
+            borderRight: "5px solid #087cff"
           }}>
             {message}
             <button
@@ -1365,9 +1387,12 @@ export default function App() {
             ["الرحلات المفتوحة", openTrips.length],
             ["الرحلات المكتملة", completedTrips.length]
           ].map(([label, value]) => (
-            <div key={label} style={css.card}>
-              <div>{label}</div>
-              <h2 style={{ marginBottom: 0 }}>{value}</h2>
+            <div key={label} style={{
+              ...css.card,
+              borderTop: "3px solid #087cff"
+            }}>
+              <div style={{ color: "#a9bdd8" }}>{label}</div>
+              <h2 style={{ marginBottom: 0, color: "#168cff" }}>{value}</h2>
             </div>
           ))}
         </div>
@@ -1474,16 +1499,17 @@ export default function App() {
 
             {newTripCode && (
               <div style={{
-                border: "2px solid #16a34a",
+                border: "2px solid #087cff",
                 borderRadius: 10,
                 padding: 15,
                 marginTop: 15,
-                textAlign: "center"
+                textAlign: "center",
+                background: "#080f1b"
               }}>
                 <h3>رمز العودة الخاص بالرحلة</h3>
                 <h2 style={{
                   direction: "ltr",
-                  color: "#166534",
+                  color: "#168cff",
                   overflowWrap: "anywhere"
                 }}>
                   {newTripCode}
@@ -1503,7 +1529,7 @@ export default function App() {
         {tab === "trips" && (
           <>
             <section style={css.card}>
-              <h3>🚗 الرحلات المفتوحة</h3>
+              <h3 style={{ color: "#168cff" }}>🚗 الرحلات المفتوحة</h3>
 
               {openTrips.length === 0 && (
                 <p>لا توجد رحلات مفتوحة.</p>
@@ -1511,10 +1537,10 @@ export default function App() {
 
               {openTrips.map(t => (
                 <div key={t.id} style={{
-                  borderBottom: "1px solid #e2e8f0",
+                  borderBottom: "1px solid #26364d",
                   padding: "14px 0"
                 }}>
-                  <b>{t.destination}</b>
+                  <b style={{ color: "#ffffff" }}>{t.destination}</b>
 
                   <p>
                     السيارة: {t.vehicle_name || vehicleName(t.vehicle_id)}
@@ -1567,7 +1593,7 @@ export default function App() {
             </section>
 
             <section style={css.card}>
-              <h3>✅ الرحلات المكتملة</h3>
+              <h3 style={{ color: "#168cff" }}>✅ الرحلات المكتملة</h3>
 
               {completedTrips.length === 0 && (
                 <p>لا توجد رحلات مكتملة.</p>
@@ -1575,7 +1601,7 @@ export default function App() {
 
               {completedTrips.map(t => (
                 <div key={t.id} style={{
-                  borderBottom: "1px solid #e2e8f0",
+                  borderBottom: "1px solid #26364d",
                   padding: 12
                 }}>
                   <b>{t.destination}</b>
@@ -1689,7 +1715,7 @@ export default function App() {
             ) : (
               filteredTrips.map(t => (
                 <div key={t.id} style={{
-                  borderBottom: "1px solid #ddd",
+                  borderBottom: "1px solid #334155",
                   padding: 14,
                   marginBottom: 10,
                   pageBreakInside: "avoid"
@@ -1756,7 +1782,7 @@ export default function App() {
         {/* السائقون */}
         {tab === "drivers" && (
           <section style={css.card}>
-            <h3>قائمة السائقين المسجلين</h3>
+            <h3 style={{ color: "#168cff" }}>قائمة السائقين المسجلين</h3>
 
             {isAdmin && (
               <form onSubmit={addDriver}>
@@ -1796,7 +1822,7 @@ export default function App() {
             {drivers.map(d => (
               <div key={d.id} style={{
                 padding: 12,
-                borderBottom: "1px solid #e2e8f0"
+                borderBottom: "1px solid #26364d"
               }}>
                 <b>{d.full_name}</b>
                 <p>Matricule: {d.matricule || "غير مسجل"}</p>
@@ -1840,7 +1866,7 @@ export default function App() {
         {/* السيارات */}
         {tab === "vehicles" && (
           <section style={css.card}>
-            <h3>قائمة السيارات المسجلة</h3>
+            <h3 style={{ color: "#168cff" }}>قائمة السيارات المسجلة</h3>
 
             {isAdmin && (
               <form onSubmit={addVehicle}>
@@ -1871,7 +1897,7 @@ export default function App() {
             {vehicles.map(v => (
               <div key={v.id} style={{
                 padding: 12,
-                borderBottom: "1px solid #e2e8f0"
+                borderBottom: "1px solid #26364d"
               }}>
                 <b>{v.plate} - {v.label}</b>
                 {" — "}
