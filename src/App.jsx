@@ -75,7 +75,7 @@ const css = {
   }
 };
 
-// تحميل جميع السجلات دون الاكتفاء بأول 1000 سجل
+// تحميل جميع السجلات
 async function getAllRows(table) {
   let all = [];
   let start = 0;
@@ -240,7 +240,7 @@ export default function App() {
     return matchesSearch && matchesStatus;
   });
 
-  // مراقبة حالة تسجيل الدخول
+  // مراقبة تسجيل الدخول
   useEffect(() => {
     let mounted = true;
 
@@ -282,7 +282,7 @@ export default function App() {
     if (user) loadData();
   }, [user]);
 
-  // تحميل بيانات المراقب
+  // تحميل البيانات
   async function loadData() {
     if (!user) return;
 
@@ -579,24 +579,14 @@ export default function App() {
     }
   }
 
-  // حذف سائق نهائياً — للمراقب الرئيسي فقط
+  // حذف سائق نهائياً
   async function deleteDriver(driver) {
     if (!isAdmin) {
       return setMessage("الحذف خاص بالمراقب الرئيسي فقط.");
     }
 
-    const hasTrips = trips.some(
-      t => String(t.driver_id) === String(driver.id)
-    );
-
-    if (hasTrips) {
-      return setMessage(
-        "لا يمكن حذف هذا السائق لأنه مرتبط برحلات سابقة. يمكنك تعطيله بدلاً من ذلك."
-      );
-    }
-
     if (!window.confirm(
-      `هل أنت متأكد من حذف السائق "${driver.full_name}" نهائياً؟`
+      `هل أنت متأكد من حذف السائق "${driver.full_name}" نهائياً؟\n\nيجب أن تكون علاقة الرحلات بالسائق مضبوطة على ON DELETE SET NULL حتى تبقى الرحلات محفوظة.`
     )) return;
 
     setSaving(true);
@@ -624,7 +614,7 @@ export default function App() {
     }
   }
 
-  // حذف السيارة نهائياً مع الاحتفاظ بجميع الرحلات
+  // حذف السيارة مع الاحتفاظ بالرحلات
   async function deleteVehicle(vehicle) {
     if (!isAdmin) {
       return setMessage("الحذف خاص بالمراقب الرئيسي فقط.");
@@ -789,7 +779,124 @@ export default function App() {
     }
   }
 
-  // تسجيل العودة بدون حساب باستعمال الرمز السري
+  // تعديل الرحلة للمراقب الرئيسي
+  async function editTrip(trip) {
+    if (!isAdmin) {
+      return setMessage("تعديل الرحلات خاص بالمراقب الرئيسي فقط.");
+    }
+
+    const driverNameValue = window.prompt(
+      "اسم السائق:",
+      trip.driver_name || ""
+    );
+    if (driverNameValue === null || !driverNameValue.trim()) return;
+
+    const matriculeValue = window.prompt(
+      "Matricule السائق:",
+      trip.driver_matricule || ""
+    );
+    if (matriculeValue === null) return;
+
+    const vehicleValue = window.prompt(
+      "السيارة ورقم التسجيل:",
+      trip.vehicle_name || ""
+    );
+    if (vehicleValue === null || !vehicleValue.trim()) return;
+
+    const destinationValue = window.prompt(
+      "الوجهة:",
+      trip.destination || ""
+    );
+    if (destinationValue === null || !destinationValue.trim()) return;
+
+    const purposeValue = window.prompt(
+      "الغرض من الرحلة:",
+      trip.purpose || ""
+    );
+    if (purposeValue === null) return;
+
+    const departureKmValue = window.prompt(
+      "عداد الانطلاق KM:",
+      String(trip.departure_km ?? "")
+    );
+    if (departureKmValue === null) return;
+
+    const departureKm = Number(departureKmValue);
+
+    if (
+      departureKmValue.trim() === "" ||
+      !Number.isInteger(departureKm) ||
+      departureKm < 0
+    ) {
+      return setMessage("عداد الانطلاق غير صحيح.");
+    }
+
+    let returnKm = trip.return_km;
+
+    if (trip.return_km !== null && trip.return_km !== undefined) {
+      const returnKmValue = window.prompt(
+        "عداد العودة KM:",
+        String(trip.return_km)
+      );
+
+      if (returnKmValue === null) return;
+
+      returnKm = Number(returnKmValue);
+
+      if (
+        returnKmValue.trim() === "" ||
+        !Number.isInteger(returnKm) ||
+        returnKm < departureKm
+      ) {
+        return setMessage(
+          "عداد العودة يجب أن يكون أكبر من أو يساوي عداد الانطلاق."
+        );
+      }
+    }
+
+    const notesValue = window.prompt(
+      "ملاحظات:",
+      trip.notes || ""
+    );
+    if (notesValue === null) return;
+
+    if (!window.confirm("هل تريد حفظ تعديلات هذه الرحلة؟")) return;
+
+    setSaving(true);
+    setMessage("");
+
+    try {
+      const { data, error } = await supabase
+        .from("trips")
+        .update({
+          driver_name: driverNameValue.trim(),
+          driver_matricule: matriculeValue.trim(),
+          vehicle_name: vehicleValue.trim(),
+          destination: destinationValue.trim(),
+          purpose: purposeValue.trim() || null,
+          departure_km: departureKm,
+          return_km: returnKm,
+          notes: notesValue.trim() || null
+        })
+        .eq("id", trip.id)
+        .select("id");
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        throw new Error("لم يتم تعديل الرحلة. تحقق من صلاحيات المراقب.");
+      }
+
+      setMessage("تم تعديل الرحلة بنجاح.");
+      await loadData();
+    } catch (e) {
+      setMessage("تعذر تعديل الرحلة: " + e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // تسجيل العودة بدون حساب
   async function registerAnonymousReturn(e) {
     e.preventDefault();
 
@@ -1339,6 +1446,16 @@ export default function App() {
                   >
                     تسجيل العودة
                   </button>
+
+                  {isAdmin && (
+                    <button
+                      style={css.secondary}
+                      disabled={saving}
+                      onClick={() => editTrip(t)}
+                    >
+                      ✏️ تعديل الرحلة
+                    </button>
+                  )}
                 </div>
               ))}
             </section>
@@ -1382,6 +1499,16 @@ export default function App() {
                     🕒 وقت العودة:
                     <b> {formatDateTime(t.return_at)}</b>
                   </p>
+
+                  {isAdmin && (
+                    <button
+                      style={css.secondary}
+                      disabled={saving}
+                      onClick={() => editTrip(t)}
+                    >
+                      ✏️ تعديل الرحلة
+                    </button>
+                  )}
                 </div>
               ))}
             </section>
@@ -1502,6 +1629,18 @@ export default function App() {
                   </p>
 
                   {t.notes && <p>ملاحظات: {t.notes}</p>}
+
+                  {isAdmin && (
+                    <div className="no-print">
+                      <button
+                        style={css.button}
+                        onClick={() => editTrip(t)}
+                        disabled={saving}
+                      >
+                        ✏️ تعديل الرحلة
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))
             )}
