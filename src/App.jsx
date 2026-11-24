@@ -7,28 +7,28 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
-const APP_NAME = "GIGR FLEET";
-const APP_SUBTITLE = "GESTION DU PARC AUTOMOBILE";
+const APP_NAME = "GGR PARC AUTO";
+const APP_SUBTITLE = "GROUPE D'INTERVENTION";
 
 const css = {
   page: {
     minHeight: "100vh",
-    background: "#080b12",
+    background: "#f4f7fb",
     direction: "rtl",
     fontFamily: "Arial, sans-serif",
-    color: "#f1f5f9"
+    color: "#172033"
   },
   header: {
-    background: "linear-gradient(135deg,#02040a,#101b2d)",
-    color: "white",
+    background: "#ffffff",
+    color: "#111827",
     padding: 20,
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
     flexWrap: "wrap",
     gap: 10,
-    borderBottom: "3px solid #087cff",
-    boxShadow: "0 4px 20px #006eff22"
+    borderBottom: "3px solid #1769ff",
+    boxShadow: "0 3px 15px #00000012"
   },
   container: {
     maxWidth: 1150,
@@ -36,49 +36,49 @@ const css = {
     padding: 16
   },
   card: {
-    background: "#111827",
-    border: "1px solid #26364d",
+    background: "#ffffff",
+    border: "1px solid #e1e7f0",
     borderRadius: 12,
     padding: 18,
     marginBottom: 18,
-    boxShadow: "0 4px 16px #0006",
-    color: "#e5e7eb"
+    boxShadow: "0 3px 12px #0000000a",
+    color: "#172033"
   },
   input: {
     width: "100%",
     boxSizing: "border-box",
     padding: 12,
-    background: "#080f1b",
-    color: "#ffffff",
-    border: "1px solid #334967",
+    background: "#ffffff",
+    color: "#172033",
+    border: "1px solid #cbd5e1",
     borderRadius: 8,
     marginTop: 7,
     marginBottom: 14,
-    outlineColor: "#087cff"
+    outlineColor: "#1769ff"
   },
   button: {
     padding: "11px 16px",
-    background: "linear-gradient(135deg,#087cff,#0054c7)",
+    background: "linear-gradient(135deg,#1769ff,#0645b5)",
     color: "white",
-    border: "1px solid #168cff",
+    border: "1px solid #1769ff",
     borderRadius: 8,
     cursor: "pointer",
     margin: 3,
     fontWeight: "bold",
-    boxShadow: "0 3px 10px #006eff33"
+    boxShadow: "0 3px 8px #1769ff22"
   },
   secondary: {
     padding: "10px 14px",
-    background: "#1b293c",
-    color: "#dbeafe",
-    border: "1px solid #345477",
+    background: "#edf3ff",
+    color: "#123b80",
+    border: "1px solid #c6d8fa",
     borderRadius: 8,
     cursor: "pointer",
     margin: 3
   },
   danger: {
     padding: "9px 13px",
-    background: "#991b1b",
+    background: "#dc2626",
     color: "white",
     border: "1px solid #ef4444",
     borderRadius: 8,
@@ -87,7 +87,7 @@ const css = {
   }
 };
 
-// شعار GIGR FLEET بالأسود والأزرق
+// الشعار الاحترافي GGR PARC AUTO
 function GigrLogo({ compact = false }) {
   return (
     <div style={{
@@ -96,98 +96,139 @@ function GigrLogo({ compact = false }) {
       gap: 12,
       direction: "ltr"
     }}>
-      <div style={{
-        width: compact ? 58 : 78,
-        height: compact ? 64 : 84,
-        background: "linear-gradient(145deg,#111827,#020408)",
-        border: "2px solid #087cff",
-        clipPath: "polygon(50% 0%,94% 15%,88% 68%,50% 100%,12% 68%,6% 15%)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        flexShrink: 0,
-        boxShadow: "0 0 18px #087cff55"
-      }}>
-        <svg viewBox="0 0 100 110" width="90%" height="90%">
-          <path
-            d="M50 5 L91 20 L85 70 L50 103 L15 70 L9 20 Z"
-            fill="none"
-            stroke="#168cff"
-            strokeWidth="3"
-          />
+      <svg
+        viewBox="0 0 120 130"
+        width={compact ? 58 : 82}
+        height={compact ? 64 : 90}
+        xmlns="http://www.w3.org/2000/svg"
+        style={{ flexShrink: 0 }}
+      >
+        <defs>
+          <linearGradient id="ggrShield" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#26364d" />
+            <stop offset="100%" stopColor="#080e1b" />
+          </linearGradient>
+          <linearGradient id="ggrCar" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#4095ff" />
+            <stop offset="100%" stopColor="#0750c5" />
+          </linearGradient>
+        </defs>
 
-          <path
-            d="M50 15 L55 26 L68 28 L59 37 L61 49 L50 43 L39 49 L41 37 L32 28 L45 26 Z"
-            fill="#168cff"
-          />
+        {/* الدرع */}
+        <path
+          d="M60 5 L108 23 L101 78 Q91 108 60 125
+             Q29 108 19 78 L12 23 Z"
+          fill="url(#ggrShield)"
+          stroke="#1769ff"
+          strokeWidth="4"
+        />
 
-          <path
-            d="M17 65 L24 49 Q27 43 35 43 H65 Q73 43 76 49 L83 65 V76 H17 Z"
-            fill="#087cff"
-            stroke="#ffffff"
-            strokeWidth="1.5"
-          />
+        <path
+          d="M60 13 L98 28 L92 75 Q84 98 60 112
+             Q36 98 28 75 L22 28 Z"
+          fill="none"
+          stroke="#75b2ff"
+          strokeWidth="1.5"
+        />
 
-          <path
-            d="M30 48 H70 L76 62 H24 Z"
-            fill="#07111f"
-            stroke="#64b5ff"
-            strokeWidth="1.5"
-          />
+        {/* زخرفة الدرع */}
+        <path
+          d="M38 29 H82"
+          stroke="#ffffff"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
 
-          <path
-            d="M50 49 V62"
-            stroke="#168cff"
-            strokeWidth="2"
-          />
+        <path
+          d="M50 20 L60 14 L70 20"
+          fill="none"
+          stroke="#4c98ff"
+          strokeWidth="2"
+        />
 
-          <circle cx="32" cy="76" r="7" fill="#020408" stroke="#168cff" strokeWidth="2.5"/>
-          <circle cx="68" cy="76" r="7" fill="#020408" stroke="#168cff" strokeWidth="2.5"/>
+        {/* سيارة عصرية */}
+        <path
+          d="M25 73 L33 53 Q36 46 45 46
+             H75 Q84 46 87 53 L95 73
+             L99 80 V88 H21 V80 Z"
+          fill="url(#ggrCar)"
+          stroke="#ffffff"
+          strokeWidth="2"
+          strokeLinejoin="round"
+        />
 
-          <text
-            x="50"
-            y="96"
-            textAnchor="middle"
-            fontSize="13"
-            fontWeight="bold"
-            fill="#ffffff"
-            letterSpacing="1"
-          >
-            GIGR
-          </text>
-        </svg>
-      </div>
+        {/* الزجاج الأمامي */}
+        <path
+          d="M39 54 Q41 51 47 51 H73
+             Q79 51 81 54 L87 68 H33 Z"
+          fill="#e8f2ff"
+          stroke="#a8ceff"
+          strokeWidth="1.5"
+        />
 
-      <div style={{ textAlign: "left" }}>
-        <div style={{
-          fontSize: compact ? 22 : 30,
-          fontWeight: 900,
-          letterSpacing: 3,
-          color: "#ffffff",
-          textShadow: "0 0 12px #087cff66"
-        }}>
-          GIGR
+        <path
+          d="M60 52 V68"
+          stroke="#1769ff"
+          strokeWidth="2"
+        />
+
+        {/* المصابيح */}
+        <path
+          d="M24 75 H36 M84 75 H96"
+          stroke="#ffffff"
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
+
+        {/* العجلات */}
+        <circle cx="39" cy="86" r="7" fill="#080e1b" stroke="#ffffff" strokeWidth="2"/>
+        <circle cx="81" cy="86" r="7" fill="#080e1b" stroke="#ffffff" strokeWidth="2"/>
+
+        {/* GGR */}
+        <text
+          x="60"
+          y="105"
+          textAnchor="middle"
+          fontSize="13"
+          fontWeight="900"
+          fill="#ffffff"
+          letterSpacing="2"
+        >
+          GGR
+        </text>
+      </svg>
+
+      {!compact && (
+        <div style={{ textAlign: "left", lineHeight: 1.2 }}>
+          <div style={{
+            fontSize: compact ? 22 : 30,
+            fontWeight: 900,
+            letterSpacing: 3,
+            color: "#101827"
+          }}>
+            GGR
+          </div>
+
+          <div style={{
+            fontSize: compact ? 10 : 12,
+            color: "#1769ff",
+            letterSpacing: 1,
+            fontWeight: 900
+          }}>
+            GROUPE D'INTERVENTION
+          </div>
+
+          <div style={{
+            fontSize: compact ? 13 : 17,
+            color: "#101827",
+            letterSpacing: 3,
+            fontWeight: 900,
+            marginTop: 3
+          }}>
+            PARC AUTO
+          </div>
         </div>
-
-        <div style={{
-          fontSize: compact ? 15 : 19,
-          color: "#168cff",
-          letterSpacing: 5,
-          fontWeight: 900
-        }}>
-          FLEET
-        </div>
-
-        <div style={{
-          fontSize: compact ? 8 : 10,
-          color: "#a9bdd8",
-          letterSpacing: 1,
-          fontWeight: "bold",
-          marginTop: 4
-        }}>
-          INTERVENTION RAPIDE
-        </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -1071,7 +1112,7 @@ export default function App() {
     <div style={{
       textAlign: "center",
       padding: 20,
-      color: "#8ba3c2",
+      color: "#64748b",
       fontWeight: "bold"
     }}>
       {APP_NAME} © 2026
@@ -1079,7 +1120,7 @@ export default function App() {
         fontSize: 11,
         marginTop: 5,
         letterSpacing: 1,
-        color: "#168cff"
+        color: "#1769ff"
       }}>
         {APP_SUBTITLE}
       </div>
@@ -1101,7 +1142,7 @@ export default function App() {
         }}>
           <GigrLogo />
         </div>
-        جاري تحميل GIGR FLEET...
+        جاري تحميل GGR PARC AUTO...
       </div>
     );
   }
@@ -1113,7 +1154,7 @@ export default function App() {
         <header style={css.header}>
           <div>
             <GigrLogo />
-            <div style={{ marginTop: 8, fontSize: 13, color: "#a9bdd8" }}>
+            <div style={{ marginTop: 8, fontSize: 13, color: "#64748b" }}>
               نظام تدبير السيارات والرحلات
             </div>
           </div>
@@ -1130,7 +1171,7 @@ export default function App() {
           {message && (
             <div style={{
               ...css.card,
-              borderRight: "5px solid #087cff"
+              borderRight: "5px solid #1769ff"
             }}>
               {message}
               <button
@@ -1265,7 +1306,7 @@ export default function App() {
           {newTripCode && (
             <section style={{
               ...css.card,
-              border: "2px solid #087cff",
+              border: "2px solid #1769ff",
               textAlign: "center"
             }}>
               <h3>✅ تم تسجيل الرحلة بنجاح</h3>
@@ -1276,7 +1317,7 @@ export default function App() {
               <h2 style={{
                 direction: "ltr",
                 letterSpacing: 3,
-                color: "#168cff",
+                color: "#1769ff",
                 overflowWrap: "anywhere"
               }}>
                 {newTripCode}
@@ -1348,7 +1389,7 @@ export default function App() {
       <header style={css.header}>
         <div>
           <GigrLogo />
-          <div style={{ marginTop: 8, fontSize: 13, color: "#a9bdd8" }}>
+          <div style={{ marginTop: 8, fontSize: 13, color: "#64748b" }}>
             نظام تدبير السيارات والرحلات
           </div>
           <small>{profile?.full_name || user.email}</small>
@@ -1363,7 +1404,7 @@ export default function App() {
         {message && (
           <div style={{
             ...css.card,
-            borderRight: "5px solid #087cff"
+            borderRight: "5px solid #1769ff"
           }}>
             {message}
             <button
@@ -1389,10 +1430,10 @@ export default function App() {
           ].map(([label, value]) => (
             <div key={label} style={{
               ...css.card,
-              borderTop: "3px solid #087cff"
+              borderTop: "3px solid #1769ff"
             }}>
-              <div style={{ color: "#a9bdd8" }}>{label}</div>
-              <h2 style={{ marginBottom: 0, color: "#168cff" }}>{value}</h2>
+              <div style={{ color: "#64748b" }}>{label}</div>
+              <h2 style={{ marginBottom: 0, color: "#1769ff" }}>{value}</h2>
             </div>
           ))}
         </div>
@@ -1499,17 +1540,17 @@ export default function App() {
 
             {newTripCode && (
               <div style={{
-                border: "2px solid #087cff",
+                border: "2px solid #1769ff",
                 borderRadius: 10,
                 padding: 15,
                 marginTop: 15,
                 textAlign: "center",
-                background: "#080f1b"
+                background: "#f0f5ff"
               }}>
                 <h3>رمز العودة الخاص بالرحلة</h3>
                 <h2 style={{
                   direction: "ltr",
-                  color: "#168cff",
+                  color: "#1769ff",
                   overflowWrap: "anywhere"
                 }}>
                   {newTripCode}
@@ -1529,7 +1570,7 @@ export default function App() {
         {tab === "trips" && (
           <>
             <section style={css.card}>
-              <h3 style={{ color: "#168cff" }}>🚗 الرحلات المفتوحة</h3>
+              <h3 style={{ color: "#1769ff" }}>🚗 الرحلات المفتوحة</h3>
 
               {openTrips.length === 0 && (
                 <p>لا توجد رحلات مفتوحة.</p>
@@ -1537,10 +1578,10 @@ export default function App() {
 
               {openTrips.map(t => (
                 <div key={t.id} style={{
-                  borderBottom: "1px solid #26364d",
+                  borderBottom: "1px solid #e2e8f0",
                   padding: "14px 0"
                 }}>
-                  <b style={{ color: "#ffffff" }}>{t.destination}</b>
+                  <b style={{ color: "#101827" }}>{t.destination}</b>
 
                   <p>
                     السيارة: {t.vehicle_name || vehicleName(t.vehicle_id)}
@@ -1593,7 +1634,7 @@ export default function App() {
             </section>
 
             <section style={css.card}>
-              <h3 style={{ color: "#168cff" }}>✅ الرحلات المكتملة</h3>
+              <h3 style={{ color: "#1769ff" }}>✅ الرحلات المكتملة</h3>
 
               {completedTrips.length === 0 && (
                 <p>لا توجد رحلات مكتملة.</p>
@@ -1601,7 +1642,7 @@ export default function App() {
 
               {completedTrips.map(t => (
                 <div key={t.id} style={{
-                  borderBottom: "1px solid #26364d",
+                  borderBottom: "1px solid #e2e8f0",
                   padding: 12
                 }}>
                   <b>{t.destination}</b>
@@ -1715,7 +1756,7 @@ export default function App() {
             ) : (
               filteredTrips.map(t => (
                 <div key={t.id} style={{
-                  borderBottom: "1px solid #334155",
+                  borderBottom: "1px solid #e2e8f0",
                   padding: 14,
                   marginBottom: 10,
                   pageBreakInside: "avoid"
@@ -1782,7 +1823,7 @@ export default function App() {
         {/* السائقون */}
         {tab === "drivers" && (
           <section style={css.card}>
-            <h3 style={{ color: "#168cff" }}>قائمة السائقين المسجلين</h3>
+            <h3 style={{ color: "#1769ff" }}>قائمة السائقين المسجلين</h3>
 
             {isAdmin && (
               <form onSubmit={addDriver}>
@@ -1822,7 +1863,7 @@ export default function App() {
             {drivers.map(d => (
               <div key={d.id} style={{
                 padding: 12,
-                borderBottom: "1px solid #26364d"
+                borderBottom: "1px solid #e2e8f0"
               }}>
                 <b>{d.full_name}</b>
                 <p>Matricule: {d.matricule || "غير مسجل"}</p>
@@ -1866,7 +1907,7 @@ export default function App() {
         {/* السيارات */}
         {tab === "vehicles" && (
           <section style={css.card}>
-            <h3 style={{ color: "#168cff" }}>قائمة السيارات المسجلة</h3>
+            <h3 style={{ color: "#1769ff" }}>قائمة السيارات المسجلة</h3>
 
             {isAdmin && (
               <form onSubmit={addVehicle}>
@@ -1897,7 +1938,7 @@ export default function App() {
             {vehicles.map(v => (
               <div key={v.id} style={{
                 padding: 12,
-                borderBottom: "1px solid #26364d"
+                borderBottom: "1px solid #e2e8f0"
               }}>
                 <b>{v.plate} - {v.label}</b>
                 {" — "}
