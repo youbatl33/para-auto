@@ -75,6 +75,7 @@ const css = {
   }
 };
 
+// تحميل جميع السجلات دون الاكتفاء بأول 1000 سجل
 async function getAllRows(table) {
   let all = [];
   let start = 0;
@@ -117,7 +118,6 @@ function generateReturnCode() {
     .toUpperCase();
 }
 
-// تنسيق التاريخ والوقت حسب توقيت الهاتف
 function formatDateTime(value) {
   if (!value) return "-";
 
@@ -135,7 +135,6 @@ function formatDateTime(value) {
   });
 }
 
-// تنسيق الساعة فقط
 function formatTime(value) {
   if (!value) return "-";
 
@@ -167,7 +166,6 @@ export default function App() {
   const [message, setMessage] = useState("");
 
   const [tab, setTab] = useState("trips");
-
   const [form, setForm] = useState(emptyForm);
 
   const [newDriverFirst, setNewDriverFirst] = useState("");
@@ -181,12 +179,11 @@ export default function App() {
   const [historySearch, setHistorySearch] = useState("");
   const [historyStatus, setHistoryStatus] = useState("all");
 
-  // بيانات تسجيل العودة بدون حساب
   const [newTripCode, setNewTripCode] = useState("");
   const [returnCodeInput, setReturnCodeInput] = useState("");
   const [returnKmInput, setReturnKmInput] = useState("");
 
-  const isAdmin = profile?.role === "admin";
+  const isAdmin = profile?.role === "admin" && profile?.active !== false;
 
   const openTrips = trips.filter(
     t => t.status === "out" && t.return_at == null
@@ -201,15 +198,15 @@ export default function App() {
   }
 
   function driverName(id) {
-    return drivers.find(d => d.id === id)?.full_name || "غير محدد";
+    return drivers.find(d => String(d.id) === String(id))?.full_name || "غير محدد";
   }
 
   function driverMatricule(id) {
-    return drivers.find(d => d.id === id)?.matricule || "غير مسجل";
+    return drivers.find(d => String(d.id) === String(id))?.matricule || "غير مسجل";
   }
 
   function vehicleName(id) {
-    const v = vehicles.find(x => x.id === id);
+    const v = vehicles.find(x => String(x.id) === String(id));
     return v ? `${v.plate} ${v.label}` : "غير محددة";
   }
 
@@ -316,7 +313,6 @@ export default function App() {
           new Date(a.created_at || a.departure_at)
         )
       );
-
     } catch (e) {
       setMessage("خطأ في تحميل البيانات: " + e.message);
     } finally {
@@ -384,7 +380,6 @@ export default function App() {
 
       setMessage("تمت إضافة السائق بنجاح.");
       await loadData();
-
     } catch (e) {
       setMessage("فشل إضافة السائق: " + e.message);
     } finally {
@@ -423,7 +418,6 @@ export default function App() {
 
       setMessage("تمت إضافة السيارة بنجاح.");
       await loadData();
-
     } catch (e) {
       setMessage("فشل إضافة السيارة: " + e.message);
     } finally {
@@ -433,7 +427,9 @@ export default function App() {
 
   // تعديل سائق
   async function editDriver(driver) {
-    if (!isAdmin) return;
+    if (!isAdmin) {
+      return setMessage("التعديل خاص بالمراقب الرئيسي.");
+    }
 
     const name = window.prompt(
       "الاسم الشخصي والنسب:",
@@ -451,27 +447,31 @@ export default function App() {
 
     setSaving(true);
 
-    const { error } = await supabase
-      .from("drivers")
-      .update({
-        full_name: name.trim(),
-        matricule: matricule.trim()
-      })
-      .eq("id", driver.id);
+    try {
+      const { error } = await supabase
+        .from("drivers")
+        .update({
+          full_name: name.trim(),
+          matricule: matricule.trim()
+        })
+        .eq("id", driver.id);
 
-    setSaving(false);
+      if (error) throw error;
 
-    if (error) {
-      setMessage("تعذر التعديل: " + error.message);
-    } else {
       setMessage("تم تعديل معلومات السائق.");
       await loadData();
+    } catch (e) {
+      setMessage("تعذر التعديل: " + e.message);
+    } finally {
+      setSaving(false);
     }
   }
 
   // تعديل سيارة
   async function editVehicle(vehicle) {
-    if (!isAdmin) return;
+    if (!isAdmin) {
+      return setMessage("التعديل خاص بالمراقب الرئيسي.");
+    }
 
     const plate = window.prompt("رقم التسجيل:", vehicle.plate);
     if (plate === null || !plate.trim()) return;
@@ -481,29 +481,33 @@ export default function App() {
 
     setSaving(true);
 
-    const { error } = await supabase
-      .from("vehicles")
-      .update({
-        plate: plate.trim(),
-        label: label.trim()
-      })
-      .eq("id", vehicle.id);
+    try {
+      const { error } = await supabase
+        .from("vehicles")
+        .update({
+          plate: plate.trim(),
+          label: label.trim()
+        })
+        .eq("id", vehicle.id);
 
-    setSaving(false);
+      if (error) throw error;
 
-    if (error) {
-      setMessage("تعذر التعديل: " + error.message);
-    } else {
       setMessage("تم تعديل السيارة.");
       await loadData();
+    } catch (e) {
+      setMessage("تعذر التعديل: " + e.message);
+    } finally {
+      setSaving(false);
     }
   }
 
   // تعطيل سائق
   async function deactivateDriver(driver) {
-    if (!isAdmin) return;
+    if (!isAdmin) {
+      return setMessage("التعطيل خاص بالمراقب الرئيسي.");
+    }
 
-    if (openTrips.some(t => t.driver_id === driver.id)) {
+    if (openTrips.some(t => String(t.driver_id) === String(driver.id))) {
       return setMessage("لا يمكن تعطيل سائق لديه رحلة مفتوحة.");
     }
 
@@ -511,26 +515,30 @@ export default function App() {
 
     setSaving(true);
 
-    const { error } = await supabase
-      .from("drivers")
-      .update({ active: false })
-      .eq("id", driver.id);
+    try {
+      const { error } = await supabase
+        .from("drivers")
+        .update({ active: false })
+        .eq("id", driver.id);
 
-    setSaving(false);
+      if (error) throw error;
 
-    if (error) {
-      setMessage(error.message);
-    } else {
       setMessage("تم تعطيل السائق.");
       await loadData();
+    } catch (e) {
+      setMessage("تعذر تعطيل السائق: " + e.message);
+    } finally {
+      setSaving(false);
     }
   }
 
   // تعطيل سيارة
   async function deactivateVehicle(vehicle) {
-    if (!isAdmin) return;
+    if (!isAdmin) {
+      return setMessage("التعطيل خاص بالمراقب الرئيسي.");
+    }
 
-    if (openTrips.some(t => t.vehicle_id === vehicle.id)) {
+    if (openTrips.some(t => String(t.vehicle_id) === String(vehicle.id))) {
       return setMessage("لا يمكن تعطيل سيارة لديها رحلة مفتوحة.");
     }
 
@@ -538,18 +546,110 @@ export default function App() {
 
     setSaving(true);
 
-    const { error } = await supabase
-      .from("vehicles")
-      .update({ active: false })
-      .eq("id", vehicle.id);
+    try {
+      const { error } = await supabase
+        .from("vehicles")
+        .update({ active: false })
+        .eq("id", vehicle.id);
 
-    setSaving(false);
+      if (error) throw error;
 
-    if (error) {
-      setMessage(error.message);
-    } else {
       setMessage("تم تعطيل السيارة.");
       await loadData();
+    } catch (e) {
+      setMessage("تعذر تعطيل السيارة: " + e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // حذف سائق نهائياً — للمراقب الرئيسي فقط
+  async function deleteDriver(driver) {
+    if (!isAdmin) {
+      return setMessage("الحذف خاص بالمراقب الرئيسي فقط.");
+    }
+
+    const hasTrips = trips.some(
+      t => String(t.driver_id) === String(driver.id)
+    );
+
+    if (hasTrips) {
+      return setMessage(
+        "لا يمكن حذف هذا السائق لأنه مرتبط برحلات سابقة. يمكنك تعطيله بدلاً من ذلك."
+      );
+    }
+
+    if (!window.confirm(
+      `هل أنت متأكد من حذف السائق "${driver.full_name}" نهائياً؟`
+    )) return;
+
+    setSaving(true);
+    setMessage("");
+
+    try {
+      const { data, error } = await supabase
+        .from("drivers")
+        .delete()
+        .eq("id", driver.id)
+        .select("id");
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        throw new Error("لم يتم الحذف. تحقق من صلاحيات المراقب.");
+      }
+
+      setMessage("تم حذف السائق نهائياً.");
+      await loadData();
+    } catch (e) {
+      setMessage("تعذر حذف السائق: " + e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // حذف سيارة نهائياً — للمراقب الرئيسي فقط
+  async function deleteVehicle(vehicle) {
+    if (!isAdmin) {
+      return setMessage("الحذف خاص بالمراقب الرئيسي فقط.");
+    }
+
+    const hasTrips = trips.some(
+      t => String(t.vehicle_id) === String(vehicle.id)
+    );
+
+    if (hasTrips) {
+      return setMessage(
+        "لا يمكن حذف هذه السيارة لأنها مرتبطة برحلات سابقة. يمكنك تعطيلها بدلاً من ذلك."
+      );
+    }
+
+    if (!window.confirm(
+      `هل أنت متأكد من حذف السيارة "${vehicle.plate} - ${vehicle.label}" نهائياً؟`
+    )) return;
+
+    setSaving(true);
+    setMessage("");
+
+    try {
+      const { data, error } = await supabase
+        .from("vehicles")
+        .delete()
+        .eq("id", vehicle.id)
+        .select("id");
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        throw new Error("لم يتم الحذف. تحقق من صلاحيات المراقب.");
+      }
+
+      setMessage("تم حذف السيارة نهائياً.");
+      await loadData();
+    } catch (e) {
+      setMessage("تعذر حذف السيارة: " + e.message);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -578,8 +678,6 @@ export default function App() {
     setNewTripCode("");
 
     const generatedCode = generateReturnCode();
-
-    // تسجيل وقت الانطلاق لحظة تأكيد الرحلة
     const departureTime = new Date().toISOString();
 
     try {
@@ -616,7 +714,6 @@ export default function App() {
         setTab("trips");
         await loadData();
       }
-
     } catch (e) {
       setMessage("فشل تسجيل الرحلة: " + e.message);
     } finally {
@@ -648,7 +745,6 @@ export default function App() {
     setSaving(true);
     setMessage("");
 
-    // تسجيل وقت العودة لحظة التأكيد
     const returnTime = new Date().toISOString();
 
     try {
@@ -677,7 +773,6 @@ export default function App() {
 
       setMessage("تم تسجيل عودة السيارة بنجاح.");
       await loadData();
-
     } catch (e) {
       setMessage("تعذر تسجيل العودة: " + e.message);
     } finally {
@@ -735,7 +830,6 @@ export default function App() {
       if (user) {
         await loadData();
       }
-
     } catch (e) {
       setMessage("تعذر تسجيل العودة: " + e.message);
     } finally {
@@ -841,9 +935,7 @@ export default function App() {
                   style={css.input}
                   placeholder="الاسم الشخصي والنسب"
                   value={form.driver_name}
-                  onChange={e =>
-                    setFormValue("driver_name", e.target.value)
-                  }
+                  onChange={e => setFormValue("driver_name", e.target.value)}
                   required
                 />
 
@@ -852,9 +944,7 @@ export default function App() {
                   style={css.input}
                   placeholder="Matricule السائق"
                   value={form.driver_matricule}
-                  onChange={e =>
-                    setFormValue("driver_matricule", e.target.value)
-                  }
+                  onChange={e => setFormValue("driver_matricule", e.target.value)}
                   required
                 />
 
@@ -863,9 +953,7 @@ export default function App() {
                   style={css.input}
                   placeholder="مثال: Dacia Logan - 12345 أ 6"
                   value={form.vehicle_name}
-                  onChange={e =>
-                    setFormValue("vehicle_name", e.target.value)
-                  }
+                  onChange={e => setFormValue("vehicle_name", e.target.value)}
                   required
                 />
 
@@ -874,9 +962,7 @@ export default function App() {
                   style={css.input}
                   placeholder="أدخل الوجهة"
                   value={form.destination}
-                  onChange={e =>
-                    setFormValue("destination", e.target.value)
-                  }
+                  onChange={e => setFormValue("destination", e.target.value)}
                   required
                 />
 
@@ -885,9 +971,7 @@ export default function App() {
                   style={css.input}
                   placeholder="الغرض من الرحلة"
                   value={form.purpose}
-                  onChange={e =>
-                    setFormValue("purpose", e.target.value)
-                  }
+                  onChange={e => setFormValue("purpose", e.target.value)}
                 />
 
                 <label>عداد الانطلاق (KM)</label>
@@ -897,9 +981,7 @@ export default function App() {
                   min="0"
                   step="1"
                   value={form.departure_km}
-                  onChange={e =>
-                    setFormValue("departure_km", e.target.value)
-                  }
+                  onChange={e => setFormValue("departure_km", e.target.value)}
                   required
                 />
 
@@ -908,9 +990,7 @@ export default function App() {
                   style={css.input}
                   placeholder="ملاحظات إضافية..."
                   value={form.notes}
-                  onChange={e =>
-                    setFormValue("notes", e.target.value)
-                  }
+                  onChange={e => setFormValue("notes", e.target.value)}
                 />
 
                 <button style={css.button} disabled={saving}>
@@ -920,7 +1000,6 @@ export default function App() {
             </section>
           )}
 
-          {/* إظهار الرمز بعد تسجيل الرحلة */}
           {newTripCode && (
             <section style={{
               ...css.card,
@@ -928,10 +1007,7 @@ export default function App() {
               textAlign: "center"
             }}>
               <h3>✅ تم تسجيل الرحلة بنجاح</h3>
-
-              <p>
-                احتفظ بهذا الرمز السري، ستحتاج إليه عند عودة السيارة:
-              </p>
+              <p>احتفظ بهذا الرمز السري، ستحتاج إليه عند عودة السيارة:</p>
 
               <h2 style={{
                 direction: "ltr",
@@ -951,17 +1027,12 @@ export default function App() {
             </section>
           )}
 
-          {/* تسجيل العودة بدون حساب */}
           <section style={css.card}>
             <h3>🔑 تسجيل عودة السيارة</h3>
-
-            <p>
-              أدخل الرمز السري الذي حصلت عليه عند تسجيل الرحلة.
-            </p>
+            <p>أدخل الرمز السري الذي حصلت عليه عند تسجيل الرحلة.</p>
 
             <form onSubmit={registerAnonymousReturn}>
               <label>الرمز السري للرحلة</label>
-
               <input
                 style={css.input}
                 value={returnCodeInput}
@@ -971,7 +1042,6 @@ export default function App() {
               />
 
               <label>عداد الكيلومترات عند العودة (KM)</label>
-
               <input
                 style={css.input}
                 type="number"
@@ -984,9 +1054,7 @@ export default function App() {
               />
 
               <button style={css.button} disabled={saving}>
-                {saving
-                  ? "جاري تسجيل العودة..."
-                  : "تأكيد عودة السيارة"}
+                {saving ? "جاري تسجيل العودة..." : "تأكيد عودة السيارة"}
               </button>
             </form>
           </section>
@@ -1087,9 +1155,7 @@ export default function App() {
                 style={css.input}
                 placeholder="الاسم الشخصي والنسب"
                 value={form.driver_name}
-                onChange={e =>
-                  setFormValue("driver_name", e.target.value)
-                }
+                onChange={e => setFormValue("driver_name", e.target.value)}
                 required
               />
 
@@ -1098,9 +1164,7 @@ export default function App() {
                 style={css.input}
                 placeholder="Matricule السائق"
                 value={form.driver_matricule}
-                onChange={e =>
-                  setFormValue("driver_matricule", e.target.value)
-                }
+                onChange={e => setFormValue("driver_matricule", e.target.value)}
                 required
               />
 
@@ -1109,9 +1173,7 @@ export default function App() {
                 style={css.input}
                 placeholder="مثال: Dacia Logan - 12345 أ 6"
                 value={form.vehicle_name}
-                onChange={e =>
-                  setFormValue("vehicle_name", e.target.value)
-                }
+                onChange={e => setFormValue("vehicle_name", e.target.value)}
                 required
               />
 
@@ -1120,9 +1182,7 @@ export default function App() {
                 style={css.input}
                 placeholder="أدخل الوجهة"
                 value={form.destination}
-                onChange={e =>
-                  setFormValue("destination", e.target.value)
-                }
+                onChange={e => setFormValue("destination", e.target.value)}
                 required
               />
 
@@ -1130,9 +1190,7 @@ export default function App() {
               <input
                 style={css.input}
                 value={form.purpose}
-                onChange={e =>
-                  setFormValue("purpose", e.target.value)
-                }
+                onChange={e => setFormValue("purpose", e.target.value)}
               />
 
               <label>عداد الانطلاق (KM)</label>
@@ -1142,9 +1200,7 @@ export default function App() {
                 min="0"
                 step="1"
                 value={form.departure_km}
-                onChange={e =>
-                  setFormValue("departure_km", e.target.value)
-                }
+                onChange={e => setFormValue("departure_km", e.target.value)}
                 required
               />
 
@@ -1152,9 +1208,7 @@ export default function App() {
               <textarea
                 style={css.input}
                 value={form.notes}
-                onChange={e =>
-                  setFormValue("notes", e.target.value)
-                }
+                onChange={e => setFormValue("notes", e.target.value)}
               />
 
               <button style={css.button} disabled={saving}>
@@ -1206,18 +1260,9 @@ export default function App() {
                 }}>
                   <b>{t.destination}</b>
 
-                  <p>
-                    السيارة: {t.vehicle_name || vehicleName(t.vehicle_id)}
-                  </p>
-
-                  <p>
-                    السائق: {t.driver_name || driverName(t.driver_id)}
-                  </p>
-
-                  <p>
-                    Matricule: {t.driver_matricule || driverMatricule(t.driver_id)}
-                  </p>
-
+                  <p>السيارة: {t.vehicle_name || vehicleName(t.vehicle_id)}</p>
+                  <p>السائق: {t.driver_name || driverName(t.driver_id)}</p>
+                  <p>Matricule: {t.driver_matricule || driverMatricule(t.driver_id)}</p>
                   <p>عداد الانطلاق: {t.departure_km} KM</p>
 
                   <p>
@@ -1263,18 +1308,9 @@ export default function App() {
                 }}>
                   <b>{t.destination}</b>
 
-                  <p>
-                    السيارة: {t.vehicle_name || vehicleName(t.vehicle_id)}
-                  </p>
-
-                  <p>
-                    السائق: {t.driver_name || driverName(t.driver_id)}
-                  </p>
-
-                  <p>
-                    Matricule: {t.driver_matricule || driverMatricule(t.driver_id)}
-                  </p>
-
+                  <p>السيارة: {t.vehicle_name || vehicleName(t.vehicle_id)}</p>
+                  <p>السائق: {t.driver_name || driverName(t.driver_id)}</p>
+                  <p>Matricule: {t.driver_matricule || driverMatricule(t.driver_id)}</p>
                   <p>عداد الانطلاق: {t.departure_km} KM</p>
                   <p>عداد العودة: {t.return_km} KM</p>
 
@@ -1372,18 +1408,9 @@ export default function App() {
                 }}>
                   <h3>{t.destination}</h3>
 
-                  <p>
-                    السائق: {t.driver_name || driverName(t.driver_id)}
-                  </p>
-
-                  <p>
-                    Matricule: {t.driver_matricule || driverMatricule(t.driver_id)}
-                  </p>
-
-                  <p>
-                    السيارة: {t.vehicle_name || vehicleName(t.vehicle_id)}
-                  </p>
-
+                  <p>السائق: {t.driver_name || driverName(t.driver_id)}</p>
+                  <p>Matricule: {t.driver_matricule || driverMatricule(t.driver_id)}</p>
+                  <p>السيارة: {t.vehicle_name || vehicleName(t.vehicle_id)}</p>
                   <p>الغرض: {t.purpose || "غير محدد"}</p>
                   <p>عداد الانطلاق: {t.departure_km} KM</p>
 
@@ -1428,7 +1455,6 @@ export default function App() {
             {isAdmin && (
               <form onSubmit={addDriver}>
                 <label>الاسم الشخصي</label>
-
                 <input
                   style={css.input}
                   placeholder="الاسم الشخصي"
@@ -1438,7 +1464,6 @@ export default function App() {
                 />
 
                 <label>النسب</label>
-
                 <input
                   style={css.input}
                   placeholder="النسب"
@@ -1448,7 +1473,6 @@ export default function App() {
                 />
 
                 <label>Matricule</label>
-
                 <input
                   style={css.input}
                   placeholder="Matricule"
@@ -1473,7 +1497,7 @@ export default function App() {
 
                 {d.active === false ? "معطل" : "نشط"}
 
-                {isAdmin && d.active !== false && (
+                {isAdmin && (
                   <>
                     <button
                       style={css.secondary}
@@ -1483,12 +1507,22 @@ export default function App() {
                       تعديل
                     </button>
 
+                    {d.active !== false && (
+                      <button
+                        style={css.danger}
+                        onClick={() => deactivateDriver(d)}
+                        disabled={saving}
+                      >
+                        تعطيل
+                      </button>
+                    )}
+
                     <button
                       style={css.danger}
-                      onClick={() => deactivateDriver(d)}
+                      onClick={() => deleteDriver(d)}
                       disabled={saving}
                     >
-                      تعطيل
+                      حذف نهائي
                     </button>
                   </>
                 )}
@@ -1505,7 +1539,6 @@ export default function App() {
             {isAdmin && (
               <form onSubmit={addVehicle}>
                 <label>رقم التسجيل</label>
-
                 <input
                   style={css.input}
                   value={newPlate}
@@ -1515,7 +1548,6 @@ export default function App() {
                 />
 
                 <label>نوع السيارة</label>
-
                 <input
                   style={css.input}
                   value={newLabel}
@@ -1539,7 +1571,7 @@ export default function App() {
                 {" — "}
                 {v.active === false ? "معطلة" : "نشطة"}
 
-                {isAdmin && v.active !== false && (
+                {isAdmin && (
                   <>
                     <button
                       style={css.secondary}
@@ -1549,12 +1581,22 @@ export default function App() {
                       تعديل
                     </button>
 
+                    {v.active !== false && (
+                      <button
+                        style={css.danger}
+                        onClick={() => deactivateVehicle(v)}
+                        disabled={saving}
+                      >
+                        تعطيل
+                      </button>
+                    )}
+
                     <button
                       style={css.danger}
-                      onClick={() => deactivateVehicle(v)}
+                      onClick={() => deleteVehicle(v)}
                       disabled={saving}
                     >
-                      تعطيل
+                      حذف نهائي
                     </button>
                   </>
                 )}
