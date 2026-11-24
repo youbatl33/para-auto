@@ -107,6 +107,16 @@ const emptyForm = {
   notes: ""
 };
 
+function generateReturnCode() {
+  const bytes = new Uint8Array(8);
+  window.crypto.getRandomValues(bytes);
+
+  return Array.from(bytes)
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("")
+    .toUpperCase();
+}
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -137,6 +147,11 @@ export default function App() {
   const [returnKm, setReturnKm] = useState({});
   const [historySearch, setHistorySearch] = useState("");
   const [historyStatus, setHistoryStatus] = useState("all");
+
+  // بيانات تسجيل العودة بدون حساب
+  const [newTripCode, setNewTripCode] = useState("");
+  const [returnCodeInput, setReturnCodeInput] = useState("");
+  const [returnKmInput, setReturnKmInput] = useState("");
 
   const isAdmin = profile?.role === "admin";
 
@@ -505,7 +520,7 @@ export default function App() {
     }
   }
 
-  // تسجيل رحلة يدوياً، سواء بحساب أو بدونه
+  // تسجيل رحلة جديدة
   async function addTrip(e) {
     e.preventDefault();
 
@@ -527,6 +542,9 @@ export default function App() {
 
     setSaving(true);
     setMessage("");
+    setNewTripCode("");
+
+    const generatedCode = generateReturnCode();
 
     try {
       const { error } = await supabase
@@ -545,14 +563,16 @@ export default function App() {
           return_at: null,
           return_km: null,
           status: "out",
-          client_id: user?.id || null
+          client_id: user?.id || null,
+          return_code: generatedCode
         });
 
       if (error) throw error;
 
       setForm(emptyForm);
+      setNewTripCode(generatedCode);
 
-      setMessage("تم تسجيل الرحلة بنجاح.");
+      setMessage("تم تسجيل الرحلة بنجاح. احتفظ بالرمز السري لتسجيل العودة.");
 
       if (user) {
         setTab("trips");
@@ -566,7 +586,7 @@ export default function App() {
     }
   }
 
-  // تسجيل العودة
+  // تسجيل العودة للمراقب
   async function finishTrip(trip) {
     const value = returnKm[trip.id];
 
@@ -621,6 +641,74 @@ export default function App() {
       setMessage("تعذر تسجيل العودة: " + e.message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  // تسجيل العودة بدون حساب باستعمال الرمز السري
+  async function registerAnonymousReturn(e) {
+    e.preventDefault();
+
+    const code = returnCodeInput.trim().toUpperCase();
+    const km = Number(returnKmInput);
+
+    if (!code || code.length < 12) {
+      return setMessage("أدخل الرمز السري الصحيح.");
+    }
+
+    if (
+      returnKmInput === "" ||
+      !Number.isInteger(km) ||
+      km < 0
+    ) {
+      return setMessage("أدخل عداد العودة بشكل صحيح.");
+    }
+
+    if (!window.confirm("هل تريد تأكيد تسجيل عودة السيارة؟")) return;
+
+    setSaving(true);
+    setMessage("");
+
+    try {
+      const { data, error } = await supabase.rpc(
+        "register_trip_return",
+        {
+          p_return_code: code,
+          p_return_km: km
+        }
+      );
+
+      if (error) throw error;
+
+      if (data !== true) {
+        throw new Error(
+          "الرمز غير صحيح، أو الرحلة مكتملة من قبل، أو عداد العودة أقل من عداد الانطلاق."
+        );
+      }
+
+      setReturnCodeInput("");
+      setReturnKmInput("");
+      setNewTripCode("");
+
+      setMessage("تم تسجيل عودة السيارة بنجاح.");
+
+      if (user) {
+        await loadData();
+      }
+
+    } catch (e) {
+      setMessage("تعذر تسجيل العودة: " + e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // نسخ الرمز السري
+  async function copyReturnCode() {
+    try {
+      await navigator.clipboard.writeText(newTripCode);
+      setMessage("تم نسخ الرمز السري بنجاح.");
+    } catch {
+      setMessage("تعذر نسخ الرمز. يرجى الاحتفاظ به يدوياً.");
     }
   }
 
@@ -790,6 +878,77 @@ export default function App() {
               </form>
             </section>
           )}
+
+          {/* إظهار الرمز بعد تسجيل الرحلة */}
+          {newTripCode && (
+            <section style={{
+              ...css.card,
+              border: "2px solid #16a34a",
+              textAlign: "center"
+            }}>
+              <h3>✅ تم تسجيل الرحلة بنجاح</h3>
+
+              <p>
+                احتفظ بهذا الرمز السري، ستحتاج إليه عند عودة السيارة:
+              </p>
+
+              <h2 style={{
+                direction: "ltr",
+                letterSpacing: 3,
+                color: "#166534",
+                overflowWrap: "anywhere"
+              }}>
+                {newTripCode}
+              </h2>
+
+              <button
+                style={css.button}
+                onClick={copyReturnCode}
+              >
+                نسخ الرمز السري
+              </button>
+            </section>
+          )}
+
+          {/* تسجيل العودة بدون حساب */}
+          <section style={css.card}>
+            <h3>🔑 تسجيل عودة السيارة</h3>
+
+            <p>
+              أدخل الرمز السري الذي حصلت عليه عند تسجيل الرحلة.
+            </p>
+
+            <form onSubmit={registerAnonymousReturn}>
+              <label>الرمز السري للرحلة</label>
+
+              <input
+                style={css.input}
+                value={returnCodeInput}
+                onChange={e => setReturnCodeInput(e.target.value)}
+                placeholder="أدخل الرمز السري"
+                required
+              />
+
+              <label>عداد الكيلومترات عند العودة (KM)</label>
+
+              <input
+                style={css.input}
+                type="number"
+                min="0"
+                step="1"
+                value={returnKmInput}
+                onChange={e => setReturnKmInput(e.target.value)}
+                placeholder="عداد العودة"
+                required
+              />
+
+              <button style={css.button} disabled={saving}>
+                {saving
+                  ? "جاري تسجيل العودة..."
+                  : "تأكيد عودة السيارة"}
+              </button>
+            </form>
+          </section>
 
           <div style={{
             textAlign: "center",
@@ -961,6 +1120,31 @@ export default function App() {
                 {saving ? "جاري التسجيل..." : "تسجيل الرحلة"}
               </button>
             </form>
+
+            {newTripCode && (
+              <div style={{
+                border: "2px solid #16a34a",
+                borderRadius: 10,
+                padding: 15,
+                marginTop: 15,
+                textAlign: "center"
+              }}>
+                <h3>رمز العودة الخاص بالرحلة</h3>
+                <h2 style={{
+                  direction: "ltr",
+                  color: "#166534",
+                  overflowWrap: "anywhere"
+                }}>
+                  {newTripCode}
+                </h2>
+                <button
+                  style={css.button}
+                  onClick={copyReturnCode}
+                >
+                  نسخ الرمز
+                </button>
+              </div>
+            )}
           </section>
         )}
 
@@ -981,9 +1165,18 @@ export default function App() {
                 }}>
                   <b>{t.destination}</b>
 
-                  <p>السيارة: {t.vehicle_name || vehicleName(t.vehicle_id)}</p>
-                  <p>السائق: {t.driver_name || driverName(t.driver_id)}</p>
-                  <p>Matricule: {t.driver_matricule || driverMatricule(t.driver_id)}</p>
+                  <p>
+                    السيارة: {t.vehicle_name || vehicleName(t.vehicle_id)}
+                  </p>
+
+                  <p>
+                    السائق: {t.driver_name || driverName(t.driver_id)}
+                  </p>
+
+                  <p>
+                    Matricule: {t.driver_matricule || driverMatricule(t.driver_id)}
+                  </p>
+
                   <p>عداد الانطلاق: {t.departure_km} KM</p>
 
                   <input
@@ -1023,14 +1216,26 @@ export default function App() {
                   padding: 12
                 }}>
                   <b>{t.destination}</b>
-                  <p>السيارة: {t.vehicle_name || vehicleName(t.vehicle_id)}</p>
-                  <p>السائق: {t.driver_name || driverName(t.driver_id)}</p>
-                  <p>Matricule: {t.driver_matricule || driverMatricule(t.driver_id)}</p>
+
+                  <p>
+                    السيارة: {t.vehicle_name || vehicleName(t.vehicle_id)}
+                  </p>
+
+                  <p>
+                    السائق: {t.driver_name || driverName(t.driver_id)}
+                  </p>
+
+                  <p>
+                    Matricule: {t.driver_matricule || driverMatricule(t.driver_id)}
+                  </p>
+
                   <p>عداد الانطلاق: {t.departure_km} KM</p>
                   <p>عداد العودة: {t.return_km} KM</p>
+
                   <p>
                     المسافة: {Number(t.return_km) - Number(t.departure_km)} KM
                   </p>
+
                   <small>
                     {t.return_at
                       ? new Date(t.return_at).toLocaleString("fr-FR")
@@ -1068,6 +1273,7 @@ export default function App() {
 
             <div className="no-print">
               <label>البحث عن رحلة</label>
+
               <input
                 style={css.input}
                 placeholder="السائق أو الماتريكيل أو السيارة أو الوجهة..."
@@ -1076,6 +1282,7 @@ export default function App() {
               />
 
               <label>حالة الرحلة</label>
+
               <select
                 style={css.input}
                 value={historyStatus}
@@ -1115,9 +1322,18 @@ export default function App() {
                 }}>
                   <h3>{t.destination}</h3>
 
-                  <p>السائق: {t.driver_name || driverName(t.driver_id)}</p>
-                  <p>Matricule: {t.driver_matricule || driverMatricule(t.driver_id)}</p>
-                  <p>السيارة: {t.vehicle_name || vehicleName(t.vehicle_id)}</p>
+                  <p>
+                    السائق: {t.driver_name || driverName(t.driver_id)}
+                  </p>
+
+                  <p>
+                    Matricule: {t.driver_matricule || driverMatricule(t.driver_id)}
+                  </p>
+
+                  <p>
+                    السيارة: {t.vehicle_name || vehicleName(t.vehicle_id)}
+                  </p>
+
                   <p>الغرض: {t.purpose || "غير محدد"}</p>
                   <p>عداد الانطلاق: {t.departure_km} KM</p>
 
@@ -1168,6 +1384,7 @@ export default function App() {
             {isAdmin && (
               <form onSubmit={addDriver}>
                 <label>الاسم الشخصي</label>
+
                 <input
                   style={css.input}
                   placeholder="الاسم الشخصي"
@@ -1177,6 +1394,7 @@ export default function App() {
                 />
 
                 <label>النسب</label>
+
                 <input
                   style={css.input}
                   placeholder="النسب"
@@ -1186,6 +1404,7 @@ export default function App() {
                 />
 
                 <label>Matricule</label>
+
                 <input
                   style={css.input}
                   placeholder="Matricule"
@@ -1242,6 +1461,7 @@ export default function App() {
             {isAdmin && (
               <form onSubmit={addVehicle}>
                 <label>رقم التسجيل</label>
+
                 <input
                   style={css.input}
                   value={newPlate}
@@ -1251,6 +1471,7 @@ export default function App() {
                 />
 
                 <label>نوع السيارة</label>
+
                 <input
                   style={css.input}
                   value={newLabel}
